@@ -53,6 +53,12 @@ bc = bicopter(model);
 
 % Perform Analysis (for each frame)
 % ----------------------
+figure(1);
+hold on;
+set(gca, "linewidth", 3, "fontsize", 12);
+xlim([-10 10]);
+ylim([-10 10]);
+zlim([-10 10]);
 bc.plotState(1);
 
 

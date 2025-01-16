@@ -1,6 +1,6 @@
 # Bicopter Class
 # Written by Matthew Santos
-
+pkg load matgeom
 
 classdef bicopter
 
@@ -62,10 +62,15 @@ classdef bicopter
     % Plot the current state of the Bicopter to figure i
     function plotState(i)
       figure(i); hold on;
-      %plot bicopter object
+      %Draw bicopter
       for [element, key] = bc.elements
+        element.pos;
+        x_ = element.dim(1);
+        y_ =
+        z_ =
+        b = drawBox3d([XMIN XMAX YMIN YMAX ZMIN ZMAX]);
+        set(b, "color", "black");
 
-        drawBox3d([XMIN XMAX YMIN YMAX ZMIN ZMAX]);
       end
 
       %plot velocity
