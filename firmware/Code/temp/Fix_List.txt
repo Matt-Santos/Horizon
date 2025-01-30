@@ -1,0 +1,18 @@
+Checklist
+-----------------------
+
+The whole class interdependance is messed up right now...
+
+Storage
+	NVS = done (needs testing)
+	SDCARD = does not work
+Sensor
+	IMU = 
+	BAT = 
+	CAM = 
+Network
+	Wifi = done
+	WEBServer = issue
+Comms
+
+Flight

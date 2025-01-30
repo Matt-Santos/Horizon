@@ -3,19 +3,53 @@
 
 #include "sensor_system.h"
 
+
+//IMU Settings (MPU6050)
+#define MPU6050_ADDR    0x68    //I2C Address
+#define IMU_SDA         26      //I2C Data Pin
+#define IMU_SCL         27      //I2C Clock Pin
+#define IMU_INT         1       //Interrupt Pin
+
+//BATTERY Settings (ADC)
+#define BAT_SENSE       13      //GPIO Battery Pin
+
+//Camera Settings (OV2640)
+#define CAMERA_MODEL_WROVER_KIT
+#define CAM_Y2          4
+#define CAM_Y3          5
+#define CAM_Y4          18
+#define CAM_Y5          19
+#define CAM_Y6          36
+#define CAM_Y7          39
+#define CAM_Y8          34
+#define CAM_Y9          35
+#define CAM_XCLK        21
+#define CAM_PCLK        22
+#define CAM_HREF        23
+#define CAM_SIOD        26
+#define CAM_SIOC        27
+#define CAM_VSYNC       25
+#define CAM_PWDN        -1
+#define CAM_RESET       -1
+
 Sensor_Class sensor;
 bool Sensor_Class::IMU_ISR_Flag;
 
 //Public Functions
 //---------------------
 void Sensor_Class::Update(){
-  IMU_Update(); //done
-  BAT_Update(); //done
-  CAM_Update(); 
+  IMU_Update();
+  Serial.printf("w_x = %f [rad] ",w[0]);
+  Serial.printf("w_y = %f [rad] ",w[1]);
+  Serial.printf("w_z = %f [rad]\n",w[2]);
+  Serial.printf("wd_x = %f [rad/s] ",w_dot[0]);
+  Serial.printf("wd_y = %f [rad/s] ",w_dot[1]);
+  Serial.printf("wd_z = %f [rad/s]\n",w_dot[2]);
+  BAT_Update();
 }
 void Sensor_Class::Init(){
-  if(!IMU_Init()) Serial.println("Error Initializing Sensor->IMU"); //done
-  if(!BAT_Init()) Serial.println("Error Initializing Sensor->BAT"); //done
+  if(!IMU_Init()) Serial.println("Error Initializing Sensor->IMU");
+  if(!BAT_Init()) Serial.println("Error Initializing Sensor->BAT");
   if(!CAM_Init()) Serial.println("Error Initializing Sensor->CAM");
 }
 void Sensor_Class::IMU_Calibrate(){
@@ -25,12 +59,12 @@ void Sensor_Class::IMU_Calibrate(){
     x_ddot_offset[i] = 0;
   }
   //Perform Calibration Sampling
-  for (uint16_t i=0;i<IMU_Cal_Samples;i++){
+  for (uint16_t i=0;i<storage.Sensor.IMU_Cal_Samples;i++){
     IMU_ISR_Flag = true;
     IMU_Update();
     for (uint8_t i=0;i<3;i++){
-      w_dot_offset[i] += w_dot[i]/IMU_Cal_Samples;
-      x_ddot_offset[i] += x_ddot[i]/IMU_Cal_Samples;
+      w_dot_offset[i] += w_dot[i]/((float) storage.Sensor.IMU_Cal_Samples);
+      x_ddot_offset[i] += x_ddot[i]/((float) storage.Sensor.IMU_Cal_Samples);
     }
     delay(50);
   }
@@ -40,6 +74,17 @@ void Sensor_Class::IMU_Calibrate(){
     x_dot[i] = 0;
   }
 }
+void Sensor_Class::CAM_GetFrame(){
+  //Update Camera Settings
+  // s->set_framesize(s, (framesize_t) storage.Sensor.CAM_Size);
+  // s->set_brightness(s, 1);   // up the brightness just a bit
+  // s->set_saturation(s, -2);  // lower the saturation
+  //Update Frame Data
+  fb = esp_camera_fb_get();
+}
+void Sensor_Class::CAM_FreeFrame(){
+  esp_camera_fb_return(fb);
+}
 //Private Functions
 //---------------------
 void IRAM_ATTR Sensor_Class::IMU_INTERRUPT(){
@@ -48,7 +93,7 @@ void IRAM_ATTR Sensor_Class::IMU_INTERRUPT(){
 bool Sensor_Class::IMU_Init(){
   bool success = true;
   //Configure I2C Interface 
-  success &= Wire.begin(IMU_SDA,IMU_SCL,IMU_I2C_Freq);
+  success &= Wire.begin(IMU_SDA,IMU_SCL,storage.Sensor.I2C_Freq);
   //Configure IMU Pins (MPU6050)
   pinMode(IMU_SDA,INPUT_PULLUP);
   pinMode(IMU_SCL,INPUT_PULLUP);
@@ -103,7 +148,7 @@ bool Sensor_Class::CAM_Init(){
   camera_config.pin_reset = CAM_RESET;
   camera_config.xclk_freq_hz = 20000000;
   camera_config.pixel_format = PIXFORMAT_JPEG;
-  camera_config.frame_size = FRAMESIZE_QVGA;
+  camera_config.frame_size = FRAMESIZE_96X96;
   camera_config.jpeg_quality = 10;
   camera_config.fb_count = 2;
   camera_config.ledc_channel = LEDC_CHANNEL_0;
@@ -112,11 +157,13 @@ bool Sensor_Class::CAM_Init(){
   camera_config.fb_location = CAMERA_FB_IN_PSRAM;
   esp_err_t err = esp_camera_init(&camera_config);
   success &= (err == ESP_OK);
-  //Set Initial Camera Resolution
+  //Apply Default Settings
   sensor_t *s = esp_camera_sensor_get();
-  s->set_framesize(s, CAM_Size);
-  //Start the Camera
-  //todo...
+  s->set_framesize(s, (framesize_t) storage.Sensor.CAM_Size);
+  //s->set_brightness(s, 1);   // up the brightness just a bit
+  //s->set_saturation(s, -1);  // lower the saturation
+  // s->set_vflip(s, 1);
+  // s->set_hmirror(s, 1);
   return success;
 }
 void Sensor_Class::IMU_Update(){
@@ -158,6 +205,8 @@ void Sensor_Class::IMU_Update(){
   w[0] += w_dot[0]*interval;      //[rad]
   w[1] += w_dot[1]*interval;      //[rad]
   w[2] += w_dot[2]*interval;      //[rad]
+  IMU_Filter();
+
   x_dot[0] += x_ddot[0]*interval; //[m/s]
   x_dot[1] += x_ddot[1]*interval; //[m/s]
   x_dot[2] += x_ddot[2]*interval; //[m/s]
@@ -166,10 +215,23 @@ void Sensor_Class::IMU_Update(){
 }
 void Sensor_Class::BAT_Update(){
   static int last_time;
-  if (millis() - last_time < BAT_Period) return;
+  if (millis() - last_time < storage.Sensor.BAT_Period) return;
   BAT_Level = analogRead(BAT_SENSE);
   last_time = millis();
 }
-void Sensor_Class::CAM_Update(){
+void Sensor_Class::IMU_Filter(){
+  //Check if not Accelerating
+  // float upperlimit = 2;
+  // float lowerlimit = 0.5;
+  // float x_ddot_mag = abs(x_ddot[0])+abs(x_ddot[1])+abs(x_ddot[2]);
+  // if (x_ddot_mag < upperlimit && x_ddot_mag > lowerlimit){
+  //   //Perform Filtering
+  //   float w_rel[x] = atan2f(x_ddot[0],x_ddot[1]);  //pitch
+  //   float w_rel[x] = atan2f(x_ddot[0],x_ddot[1]);  //roll
+  //   w[0] = w[0]*0.95 + w_rel[0]*0.05;
+  //   w[1] = w[1]*0.95 + w_rel[1]*0.05;
+  //   //roll
+  //   //yaw (no absolute reference at the moment)
 
+  //}
 }
