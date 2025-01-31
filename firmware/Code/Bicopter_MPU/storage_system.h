@@ -1,11 +1,30 @@
 //Bicopter Storage System
 //Written by Matthew Santos
+
+/* Author Notes
+- this system includes these submodules
+  - Non Volitile Storage (NVS)
+  - SDCard Storage (Removable Flash)
+- the NVS module handles all configurable parameters
+  - parameters stored in NVS are loaded into ram upon calling Init()
+  - other systems access or modify these parameters through public varriables
+  - other systems may save or reload from NVS using associated public functions
+  - to maintain organization, varriables outside of this class should be system specific (ie: internal to another class)
+- the SDCard module permits reading and writing
+  - other systems may use it for logging information or as temporary storage
+*/
+
 #ifndef STORAGE_SYSTEM_H
 #define STORAGE_SYSTEM_H
 
 #include <Preferences.h>
+#include "FS.h"
+#include "SD_MMC.h"
 
 class Storage_System {
+
+  //Non Volitile Storage (NVS)
+  //--------------------------
   public:
     //NVS Namespaces
     struct storage_storage {
@@ -36,36 +55,41 @@ class Storage_System {
       int Wifi_Period = 2000;                 //[ms] Wifi Update Period
     } Network;
     struct storage_comms{
+
     } Comms;
     struct storage_flight{
     } Flight;
-    Preferences prefs;
-    //SDCard Varriables
-    uint8_t SDCard_type = 0;
-    uint64_t SDCard_size = 0;
-
-    //Public Functions (returns 1 on success)
-    //---------------------
-    void Init();
-    template <typename T_Storage>
-    bool NVS_write(const char *name,const char *key,T_Storage &data);  //Save Namespace to NVS
+    //NVS Functions
+    bool NVS_readAll();
+    bool NVS_writeAll();
     template <typename T_Storage>
     bool NVS_read (const char *name,const char *key,T_Storage &data);  //Load Namespace from NVS
-    bool NVS_writeAll();
+    template <typename T_Storage>
+    bool NVS_write(const char *name,const char *key,T_Storage &data);  //Save Namespace to NVS
+    
+  //SDCard (Flash) Storage
+  //--------------------------
+  public:
+    //SD Card Varriables
+    uint8_t SDCard_type = 0;
+    uint64_t SDCard_size = 0;
+    //SDCard Functions
+    bool SDCARD_Init();
     bool SDCARD_createDir(const char *path);
     bool SDCARD_removeDir(const char *path);
     bool SDCARD_writeFile(const char *path, const char *data, const char* access_type);
     bool SDCARD_deleteFile(const char *path);
-    static Storage_System& getInstance();  //Access Singleton Storage Class
+
+  //Storage System Class 
+  //--------------------------
+  public:
+    void Init();                    //Storage Class Initializer
+    static Storage_System* get();   //Access Singleton Storage Class
+    Storage_System(const Storage_System&) = delete;
+    Storage_System& operator=(const Storage_System&) = delete;
   private:
-    //Private Functions
-    //---------------------
-    bool NVS_Init();
-    bool SDCARD_Init();
-    //Singleton Implementation
-    //---------------------
-    static Storage_System* storage; //Private Class
-    Storage_System(){}; //Blank Constructor
+    Storage_System(){};
+    static Storage_System* instance;
     
 };
 #endif

@@ -1,5 +1,13 @@
 //Bicopter Network System
 //Written by Matthew Santos
+
+/* Author Notes
+- this system includes these submodules
+  - Wifi Access Point (WIFI)
+- the WIFI module configures the wifi network
+  - other systems may use it for communication
+*/
+
 #ifndef NETWORK_SYSTEM_H
 #define NETWORK_SYSTEM_H
 
@@ -9,19 +17,27 @@
 #include "sensor_system.h"
 
 class Network_System {
+
+  //Wifi Access Point (WIFI)
+  //---------------------
   public:
+    //WIFI Data
     uint8_t connections = 0;  //Tracks # of active connects
-    //Public Functions
-    //---------------------
-    void Update();
-    void Init();
+    //WIFI Functions
   private:
-    //Private Functions
-    //---------------------
     bool WIFI_Init();
     void WIFI_Update();
-};
 
-extern Network_System network;
+  //Network System Class 
+  //--------------------------
+  public:
+    void Init();
+    void Update();
+    static Network_System* get();  //Access Singleton Network Class
+  private:
+    Network_System(){};
+    static Network_System* instance;
+
+};
 
 #endif
