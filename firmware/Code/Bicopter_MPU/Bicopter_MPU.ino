@@ -2,11 +2,14 @@
 // Written by Matthew Santos
 
 //Libraries
-#include "systems.h"
+#include "storage_system.h"
+#include "sensor_system.h"
+#include "network_system.h"
+#include "comms_system.h"
+#include "flight_system.h"
 
 /* Todo
--move most defines into namespaces (be sure to check namespace limits)
--configure the camera webserver with controls
+-configure the camera webserver with controls into network subsystem
 -setup vlc to perform local GCS conversion/encoding of video feed to qGCS
 -add complementary filter to the sensor system and improve sensor stability
 -write the flight class
@@ -19,21 +22,27 @@
 -Note ESP32 Has two processors and could benifit from multithreading (flight calculations)
 */
 
+//System Modules (Global Objects)
+Storage_System *storage = new Storage_System();
+Sensor_System *sensor = new Sensor_System();
+Network_System *network = new Network_System();
+Comms_System *comms = new Comms_System();
+Flight_System *flight = new Flight_System();
+
 //Startup
 void setup() {
-  Serial.begin(9600,SERIAL_8N1);Serial.println("Start Init");
-  storage->Init();Serial.println("Storage Init");
-  Serial.printf("BatPeriod: %d \n",storage->Sensor.BAT_Period);
-  sensor->Init();Serial.println("Sensor Init");
-  //network.Init();Serial.println("Network Init");
-  //comms.Init();Serial.println("Comms Init");
-  //flight.Init();Serial.println("Flight Init");
-  Serial.println("Init Complete");
+  Serial.begin(9600,SERIAL_8N1);
+  storage->Init();
+  sensor->Init();
+  network->Init();
+  comms->Init();
+  flight->Init();
 }
+
 //Main Program Loop
 void loop() {
-  //sensor.Update();
-  //network.Update();
-  //comms.Update();
-  //flight.Update();
+  sensor->Update();
+  network->Update();
+  comms->Update();
+  flight->Update();
 }

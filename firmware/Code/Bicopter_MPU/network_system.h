@@ -13,8 +13,6 @@
 
 #include <WiFi.h>
 #include <WiFiAP.h>
-#include "storage_system.h"
-#include "sensor_system.h"
 
 class Network_System {
 
@@ -33,10 +31,6 @@ class Network_System {
   public:
     void Init();
     void Update();
-    static Network_System* get();  //Access Singleton Network Class
-  private:
-    Network_System(){};
-    static Network_System* instance;
 
 };
 

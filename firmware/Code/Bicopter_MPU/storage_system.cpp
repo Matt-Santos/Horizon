@@ -12,7 +12,6 @@
 #define SDCard_DAT 2
 
 Preferences prefs;
-Storage_System* Storage_System::instance = nullptr;
 
 //Non Volitile Storage (NVS)
 //--------------------------
@@ -93,8 +92,4 @@ bool Storage_System::SDCARD_deleteFile(const char *path) {
 void Storage_System::Init() {
   if (!NVS_readAll()) Serial.println("Error Initializing Storage->NVS");
   if (!SDCARD_Init()) Serial.println("Error Initializing Storage->SDCARD");
-}
-Storage_System* Storage_System::get() {
-  if (instance == nullptr) instance = new Storage_System();
-    return instance;
 }

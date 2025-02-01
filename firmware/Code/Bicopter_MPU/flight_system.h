@@ -15,9 +15,6 @@
 #define FLIGHT_SYSTEM_H
 
 #include "Arduino.h"
-#include "storage_system.h"
-#include "sensor_system.h"
-#include "comms_system.h"
 
 class Flight_System {
 
@@ -36,10 +33,6 @@ class Flight_System {
   public:
     void Init();
     void Update();
-    static Flight_System* get();  //Access Singleton Flight Class
-  private:
-    Flight_System(){};
-    static Flight_System* instance;
     
 };
 

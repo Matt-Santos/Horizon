@@ -2,6 +2,7 @@
 //Written by Matthew Santos
 
 #include "sensor_system.h"
+#include "storage_system.h"
 
 //IMU Settings (MPU6050)
 #define MPU6050_ADDR    0x68    //I2C Address
@@ -31,7 +32,7 @@
 #define CAM_PWDN        -1
 #define CAM_RESET       -1
 
-Sensor_System* Sensor_System::instance = nullptr;
+extern Storage_System *storage;
 
 //Inertia Measurement Unit (IMU)
 //--------------------------
@@ -43,12 +44,12 @@ void Sensor_System::IMU_Calibrate(){
     x_ddot_offset[i] = 0;
   }
   //Perform Calibration Sampling
-  for (uint16_t i=0;i<Storage_System::get()->Sensor.IMU_Cal_Samples;i++){
+  for (uint16_t i=0;i<storage->Sensor.IMU_Cal_Samples;i++){
     IMU_ISR_Flag = true;
     IMU_Update();
     for (uint8_t i=0;i<3;i++){
-      w_dot_offset[i] += w_dot[i]/((float) Storage_System::get()->Sensor.IMU_Cal_Samples);
-      x_ddot_offset[i] += x_ddot[i]/((float) Storage_System::get()->Sensor.IMU_Cal_Samples);
+      w_dot_offset[i] += w_dot[i]/((float) storage->Sensor.IMU_Cal_Samples);
+      x_ddot_offset[i] += x_ddot[i]/((float) storage->Sensor.IMU_Cal_Samples);
     }
     delay(50);
   }
@@ -60,15 +61,12 @@ void Sensor_System::IMU_Calibrate(){
 }
 bool Sensor_System::IMU_Init(){
   bool success = true;
-  //Configure I2C Interface
-  Serial.println("Sensor Pre");
-  //success &= Wire.begin(IMU_SDA,IMU_SCL,Storage_System::get()->Sensor.I2C_Freq);
-  success &= Wire.begin(IMU_SDA,IMU_SCL,400000);
-  Serial.println("Sensor Post");
   //Configure IMU Pins (MPU6050)
   pinMode(IMU_SDA,INPUT_PULLUP);
   pinMode(IMU_SCL,INPUT_PULLUP);
-  pinMode(IMU_INT,INPUT_PULLUP);
+  // pinMode(IMU_INT,INPUT_PULLUP); //(This apparently halts the code...)
+  //Configure I2C Interface
+  success &= Wire.begin(IMU_SDA,IMU_SCL,storage->Sensor.I2C_Freq);
   //Configure IMU Settings (MPU6050)
   uint8_t IMUsettings[14] = {
     0x19,0x00,  //SMPLRT_DIV
@@ -86,8 +84,8 @@ bool Sensor_System::IMU_Init(){
     success &= (Wire.endTransmission() == 0);
   }
   //Perform IMU Startup Calibration
-  //IMU_Calibrate();
-  //attachInterrupt(IMU_INT,IMU_INTERRUPT,ONLOW);
+  IMU_Calibrate();
+  attachInterrupt(IMU_INT,IMU_INTERRUPT,ONLOW);
   return success;
 }
 void Sensor_System::IMU_Filter(){
@@ -168,7 +166,7 @@ bool Sensor_System::BAT_Init(){
 }
 void Sensor_System::BAT_Update(){
   static int last_time;
-  if (millis() - last_time < Storage_System::get()->Sensor.BAT_Period) return;
+  if (millis() - last_time < storage->Sensor.BAT_Period) return;
   BAT_Level = analogRead(BAT_SENSE);
   last_time = millis();
 }
@@ -219,7 +217,7 @@ bool Sensor_System::CAM_Init(){
   success &= (err == ESP_OK);
   //Apply Default Settings
   sensor_t *s = esp_camera_sensor_get();
-  s->set_framesize(s, (framesize_t) Storage_System::get()->Sensor.CAM_Size);
+  s->set_framesize(s, (framesize_t) storage->Sensor.CAM_Size);
   //s->set_brightness(s, 1);   // up the brightness just a bit
   //s->set_saturation(s, -1);  // lower the saturation
   // s->set_vflip(s, 1);
@@ -243,8 +241,4 @@ void Sensor_System::Update(){
   Serial.printf("wd_y = %f [rad/s] ",w_dot[1]);
   Serial.printf("wd_z = %f [rad/s]\n",w_dot[2]);
   BAT_Update();
-}
-Sensor_System* Sensor_System::get() {
-  if (instance == nullptr) instance = new Sensor_System;
-    return instance;
 }

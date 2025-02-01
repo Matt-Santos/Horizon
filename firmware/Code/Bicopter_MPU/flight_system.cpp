@@ -2,6 +2,9 @@
 //Written by Matthew Santos
 
 #include "flight_system.h"
+#include "storage_system.h"
+#include "sensor_system.h"
+#include "comms_system.h"
 
 //Motor Settings (MOTOR)
 #define PWM_Frequency     10000 //[Hz]
@@ -9,7 +12,9 @@
 #define Motor_PWM_R       33    //Right Motor GPIO Pin
 #define Motor_PWM_P       32    //Pitch Motor GPIO Pin
 
-Flight_System* Flight_System::instance = nullptr;
+extern Storage_System *storage;
+extern Sensor_System *sensor;
+extern Comms_System *comms;
 
 //Motor Control (MOTOR)
 //---------------------
@@ -38,21 +43,17 @@ void Flight_System::Init(){
   if(!MOTOR_Init()) Serial.println("Error Initializing Flight->Motor");
 }
 void Flight_System::Update(){
-  float L = (512.0*Comms_System::get()->MAVLINK_manual_control.z)/125.0-(512.0*Comms_System::get()->MAVLINK_manual_control.y)/625.0;
-  float R = (512*Comms_System::get()->MAVLINK_manual_control.z)/125.0+(512.0*Comms_System::get()->MAVLINK_manual_control.y)/625.0;
+  float L = (512.0*comms->MAVLINK_manual_control.z)/125.0-(512.0*comms->MAVLINK_manual_control.y)/625.0;
+  float R = (512*comms->MAVLINK_manual_control.z)/125.0+(512.0*comms->MAVLINK_manual_control.y)/625.0;
   L_PWM = (unsigned int) constrain(L,0,4096);
   R_PWM = (unsigned int) constrain(R,0,4096);
   Serial.printf("MANUAL_CONTROL: ");
-  Serial.printf("x= %d ",Comms_System::get()->MAVLINK_manual_control.x);
-  Serial.printf("y= %d ",Comms_System::get()->MAVLINK_manual_control.y);
-  Serial.printf("z= %d ",Comms_System::get()->MAVLINK_manual_control.z);
-  Serial.printf("r= %d ",Comms_System::get()->MAVLINK_manual_control.r);
+  Serial.printf("x= %d ",comms->MAVLINK_manual_control.x);
+  Serial.printf("y= %d ",comms->MAVLINK_manual_control.y);
+  Serial.printf("z= %d ",comms->MAVLINK_manual_control.z);
+  Serial.printf("r= %d ",comms->MAVLINK_manual_control.r);
   Serial.printf("L_PWM= %d ",L_PWM);
   Serial.printf("R_PWM= %d \n",R_PWM);
   ledcWrite(Motor_PWM_L,L_PWM); //Update Left Motor
   ledcWrite(Motor_PWM_R,R_PWM); //Update Right Motor
-}
-Flight_System* Flight_System::get() {
-  if (instance == nullptr) instance = new Flight_System;
-    return instance;
 }

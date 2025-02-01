@@ -13,8 +13,6 @@
 #include <WiFiUdp.h>
 #include <MAVLink_common.h>
 #include "time.h"
-#include "storage_system.h"
-#include "sensor_system.h"
 
 class Comms_System {
 
@@ -45,10 +43,6 @@ class Comms_System {
   public:
     void Init();
     void Update();
-    static Comms_System* get();  //Access Singleton Comms Class
-  private:
-    Comms_System(){};
-    static Comms_System* instance;
     
 };
 

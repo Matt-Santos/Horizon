@@ -17,7 +17,6 @@
 #include "Arduino.h"
 #include <Wire.h>
 #include "esp_camera.h"
-#include "storage_system.h"
 
 class Sensor_System {
 
@@ -71,10 +70,6 @@ class Sensor_System {
   public:
     void Init();                  //Sensor Class Initializer
     void Update();                //Update all Sensors
-    static Sensor_System* get();  //Access Singleton Sensor Class
-  private:
-    Sensor_System(){};
-    static Sensor_System* instance;
     
 };
 

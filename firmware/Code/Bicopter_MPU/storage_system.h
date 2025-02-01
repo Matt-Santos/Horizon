@@ -55,7 +55,6 @@ class Storage_System {
       int Wifi_Period = 2000;                 //[ms] Wifi Update Period
     } Network;
     struct storage_comms{
-
     } Comms;
     struct storage_flight{
     } Flight;
@@ -71,8 +70,8 @@ class Storage_System {
   //--------------------------
   public:
     //SD Card Varriables
-    uint8_t SDCard_type = 0;
-    uint64_t SDCard_size = 0;
+    uint8_t SDCard_type;
+    uint64_t SDCard_size;
     //SDCard Functions
     bool SDCARD_Init();
     bool SDCARD_createDir(const char *path);
@@ -84,12 +83,5 @@ class Storage_System {
   //--------------------------
   public:
     void Init();                    //Storage Class Initializer
-    static Storage_System* get();   //Access Singleton Storage Class
-    Storage_System(const Storage_System&) = delete;
-    Storage_System& operator=(const Storage_System&) = delete;
-  private:
-    Storage_System(){};
-    static Storage_System* instance;
-    
 };
 #endif

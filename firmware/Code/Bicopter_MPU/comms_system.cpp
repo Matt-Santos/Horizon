@@ -2,6 +2,8 @@
 // Written by Matthew Santos
 
 #include <comms_system.h>
+#include "storage_system.h"
+#include "sensor_system.h"
 
 //MAVLINK Settings (MAVLINK)
 #define MAV_SYSTEM_ID                 1
@@ -16,7 +18,8 @@
 //Make this the size of above storage section
 #define MAX_LENGTH_SENDS              3   //Maximum Number of SEND MESSAGES
 
-Comms_System* Comms_System::instance = nullptr;
+extern Storage_System *storage;
+extern Sensor_System *sensor;
 
 //Mavlink Protocol (MAVLINK)
 //--------------------------
@@ -126,7 +129,7 @@ void Comms_System::MAVLINK_Streams(){
     MAVLINK_Write(msg);
   }
   if(Stream_Check(1,SystemStatus_Interval)){
-    MAVLINK_sys_status.voltage_battery = Sensor_System::get()->BAT_Level;
+    MAVLINK_sys_status.voltage_battery = sensor->BAT_Level;
     MAVLINK_sys_status.current_battery = -1;
     MAVLINK_sys_status.battery_remaining = -1;
     mavlink_msg_sys_status_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_sys_status);
@@ -134,12 +137,12 @@ void Comms_System::MAVLINK_Streams(){
   }
   if(Stream_Check(2,ATTITUDE_Interval)){
     MAVLINK_attitude.time_boot_ms = millis();  //Overflows in 49 days
-    MAVLINK_attitude.roll = (float) Sensor_System::get()->w[0];
-    MAVLINK_attitude.pitch = (float) Sensor_System::get()->w[1];
-    MAVLINK_attitude.yaw = (float) Sensor_System::get()->w[2];
-    MAVLINK_attitude.rollspeed = (float) Sensor_System::get()->w_dot[0];
-    MAVLINK_attitude.pitchspeed = (float) Sensor_System::get()->w_dot[1];
-    MAVLINK_attitude.yawspeed = (float) Sensor_System::get()->w_dot[2];
+    MAVLINK_attitude.roll = (float) sensor->w[0];
+    MAVLINK_attitude.pitch = (float) sensor->w[1];
+    MAVLINK_attitude.yaw = (float) sensor->w[2];
+    MAVLINK_attitude.rollspeed = (float) sensor->w_dot[0];
+    MAVLINK_attitude.pitchspeed = (float) sensor->w_dot[1];
+    MAVLINK_attitude.yawspeed = (float) sensor->w_dot[2];
     mavlink_msg_attitude_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_attitude);
     MAVLINK_Write(msg);
   }
@@ -159,8 +162,4 @@ void Comms_System::Init(){
 void Comms_System::Update(){
   MAVLINK_Streams();  //Transmit Continous MAVLINK Messages
   MAVLINK_Read();     //Recieve MAVLINK Messages and Respond
-}
-Comms_System* Comms_System::get() {
-  if (instance == nullptr) instance = new Comms_System;
-    return instance;
 }
