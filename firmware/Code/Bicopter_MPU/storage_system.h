@@ -30,21 +30,23 @@ class Storage_System {
     struct storage_storage {
     } Storage;
     struct storage_sensor{
-      uint32_t I2C_Freq = 400000;     //[Hz] I2C Clock Frequency
-      uint16_t IMU_Cal_Samples = 100; //Number of Samples used in Calibration
-      int BAT_Period = 1;             //[ms] Time between Battery Measurements
-      int CAM_Size = 0;               // 96x96
-      //int CAM_Size = 1;               // 160x120
-      //int CAM_Size = 2;               // 128x128
-      //int CAM_Size = 3;               // 176x144
-      //int CAM_Size = 4;               // 240x176
-      //int CAM_Size = 5;               // 240x240
-      //int CAM_Size = 6;               // 320x240
-      //int CAM_Size = 7;               // 320x320
-      //int CAM_Size = 8;               // 400x296
-      //int CAM_Size = 9;               // 480x320
-      //int CAM_Size = 10;              // 640x480
-      //int CAM_Size = 11;              // 800x600
+      uint32_t I2C_Freq = 400000;       //[Hz] I2C Clock Frequency
+      uint16_t IMU_Cal_Samples = 200;   //Number of Samples used in Calibration
+      int BAT_Period = 1;               //[ms] Time between Battery Measurements
+      int CAM_Size = 0;                 // 96x96
+      //int CAM_Size = 1;                 // 160x120
+      //int CAM_Size = 2;                 // 128x128
+      //int CAM_Size = 3;                 // 176x144
+      //int CAM_Size = 4;                 // 240x176
+      //int CAM_Size = 5;                 // 240x240
+      //int CAM_Size = 6;                 // 320x240
+      //int CAM_Size = 7;                 // 320x320
+      //int CAM_Size = 8;                 // 400x296
+      //int CAM_Size = 9;                 // 480x320
+      //int CAM_Size = 10;                // 640x480
+      //int CAM_Size = 11;                // 800x600
+      uint16_t accel_range = 2;         //[g] (valid entries are +/- 2,4,8,16)
+      uint16_t gyro_range = 250;        //[deg/s] (valid entries are +/- 250,500,1000,2000)
     } Sensor;
     struct storage_network {
       String WIFI_SSID = "Bicopter";          //SSID

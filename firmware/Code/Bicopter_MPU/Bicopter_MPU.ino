@@ -31,6 +31,7 @@ Flight_System *flight = new Flight_System();
 
 //Startup
 void setup() {
+  delay(1000);
   Serial.begin(9600,SERIAL_8N1);
   storage->Init();
   sensor->Init();

@@ -43,15 +43,27 @@ void Sensor_System::IMU_Calibrate(){
     w_dot_offset[i] = 0;
     x_ddot_offset[i] = 0;
   }
+  //Measure for 2 seconds to correct for filter delay
+  for (uint16_t i=0;i<200;i++){
+    IMU_ISR_Flag = true;
+    IMU_Update();
+    delay(10);
+  }
   //Perform Calibration Sampling
+  float w_dot_cal[3] = {0};
+  float x_ddot_cal[3] = {0};
   for (uint16_t i=0;i<storage->Sensor.IMU_Cal_Samples;i++){
     IMU_ISR_Flag = true;
     IMU_Update();
     for (uint8_t i=0;i<3;i++){
-      w_dot_offset[i] += w_dot[i]/((float) storage->Sensor.IMU_Cal_Samples);
-      x_ddot_offset[i] += x_ddot[i]/((float) storage->Sensor.IMU_Cal_Samples);
+      w_dot_cal[i]  += w_dot[i] /((float) storage->Sensor.IMU_Cal_Samples);
+      x_ddot_cal[i] += x_ddot[i]/((float) storage->Sensor.IMU_Cal_Samples);
     }
-    delay(50);
+    delay(10);
+  }
+  for (uint8_t i=0;i<3;i++){
+    w_dot_offset[i]  = w_dot_cal[i];
+    x_ddot_offset[i] = x_ddot_cal[i];
   }
   //Reset Inferred Sensor Data
   for (uint8_t i=0;i<3;i++){
@@ -68,14 +80,43 @@ bool Sensor_System::IMU_Init(){
   //Configure I2C Interface
   success &= Wire.begin(IMU_SDA,IMU_SCL,storage->Sensor.I2C_Freq);
   //Configure IMU Settings (MPU6050)
+  uint8_t IMU_Accel_Reg, IMU_Gyro_Reg;
+  switch(storage->Sensor.accel_range){
+    case 2:
+      IMU_Accel_Reg = 0x00;
+      break;
+    case 4:
+      IMU_Accel_Reg = 0x08;
+      break;
+    case 8:
+      IMU_Accel_Reg = 0x10;
+      break;
+    default:  //also handles 16
+      IMU_Accel_Reg = 0x18;
+      break;
+  }
+  switch(storage->Sensor.gyro_range){
+    case 250:
+      IMU_Gyro_Reg = 0x00;
+      break;
+    case 500:
+      IMU_Gyro_Reg = 0x08;
+      break;
+    case 1000:
+      IMU_Gyro_Reg = 0x10;
+      break;
+    default:  //also handles 5000
+      IMU_Gyro_Reg = 0x18;
+      break;
+  }
   uint8_t IMUsettings[14] = {
-    0x19,0x00,  //SMPLRT_DIV
-    0x1a,0x00,  //Config
-    0x1b,0x00,  //Gyro  (250deg/s)
-    0x1c,0x08,  //Accel (4g)
-    0x6b,0x01,  //PW1
-    0x37,0xd0,  //Int Pin Config
-    0x38,0x01   //Enable Interrupt
+    0x19,0x00,            //SMPLRT_DIV
+    0x1a,0x01,            //Config
+    0x1b,IMU_Gyro_Reg,    //Gyro
+    0x1c,IMU_Accel_Reg,   //Accel
+    0x6b,0x01,            //PW1
+    0x37,0xd0,            //Int Pin Config
+    0x38,0x01             //Enable Interrupt
   };
   for (uint8_t i=0;i<sizeof(IMUsettings)/2;i++){
     Wire.beginTransmission(MPU6050_ADDR);
@@ -88,21 +129,32 @@ bool Sensor_System::IMU_Init(){
   attachInterrupt(IMU_INT,IMU_INTERRUPT,ONLOW);
   return success;
 }
-void Sensor_System::IMU_Filter(){
+void Sensor_System::IMU_Gyro_Filter(){
   //Check if not Accelerating
-  // float upperlimit = 2;
-  // float lowerlimit = 0.5;
-  // float x_ddot_mag = abs(x_ddot[0])+abs(x_ddot[1])+abs(x_ddot[2]);
-  // if (x_ddot_mag < upperlimit && x_ddot_mag > lowerlimit){
-  //   //Perform Filtering
-  //   float w_rel[x] = atan2f(x_ddot[0],x_ddot[1]);  //pitch
-  //   float w_rel[x] = atan2f(x_ddot[0],x_ddot[1]);  //roll
-  //   w[0] = w[0]*0.95 + w_rel[0]*0.05;
-  //   w[1] = w[1]*0.95 + w_rel[1]*0.05;
-  //   //roll
-  //   //yaw (no absolute reference at the moment)
-
+  //float upperlimit = 2;   //move to storage
+  //float lowerlimit = 0.5; //move to storage
+  //float x_ddot_mag = abs(x_ddot[0])+abs(x_ddot[1])+abs(x_ddot[2]-1.0);
+  //if (x_ddot_mag < upperlimit && x_ddot_mag > lowerlimit){
+    //Perform Filtering
+    float w_acc[3] = {
+      atan2f(x_ddot[1],x_ddot[2]-1.0),  //roll
+      atan2f(x_ddot[0],x_ddot[2]-1.0),  //pitch
+      0
+    };
+    w[0] = w[0]*0.99 + w_acc[0]*0.01;   //roll
+    w[1] = w[1]*0.99 + w_acc[1]*0.01;   //pitch
+    //yaw (no absolute reference at the moment)
   //}
+}
+void Sensor_System::IMU_Accel_Filter(){
+  static float buff[3] = {0};
+  float K_decay = 0.8;
+  buff[0] += (1-K_decay)*(x_ddot[0]-buff[0]);
+  buff[1] += (1-K_decay)*(x_ddot[1]-buff[1]);
+  buff[2] += (1-K_decay)*(x_ddot[2]-buff[2]);
+  x_ddot[0] = buff[0];
+  x_ddot[1] = buff[1];
+  x_ddot[2] = buff[2];
 }
 void Sensor_System::IMU_Update(){
   if (!IMU_ISR_Flag) return;  //Check Interrupt Flag
@@ -123,33 +175,48 @@ void Sensor_System::IMU_Update(){
   raw_data[5] = (buffer[10] << 8) | buffer[11]; //a_y
   raw_data[6] = (buffer[12] << 8) | buffer[13]; //a_z
   //Measured Values
-  w_dot[0] = (raw_data[0]/131.0)*(PI/180); //[rad/s]
-  w_dot[1] = (raw_data[1]/131.0)*(PI/180); //[rad/s]
-  w_dot[2] = (raw_data[2]/131.0)*(PI/180); //[rad/s]
+  x_ddot[0] = (raw_data[0]/16384.0)*9.807; //[m/s^2]
+  x_ddot[1] = (raw_data[1]/16384.0)*9.807; //[m/s^2]
+  x_ddot[2] = (raw_data[2]/16384.0)*9.807; //[m/s^2]
   T = (raw_data[3] + 12420.2)/340.0;       //[C]
-  x_ddot[0] = (raw_data[4]/16384.0)*9.807; //[m/s^2]
-  x_ddot[1] = (raw_data[5]/16384.0)*9.807; //[m/s^2]
-  x_ddot[2] = (raw_data[6]/16384.0)*9.807; //[m/s^2]
+  w_dot[0] = (raw_data[4]/131.0)*(PI/180); //[rad/s]
+  w_dot[1] = (raw_data[5]/131.0)*(PI/180); //[rad/s]
+  w_dot[2] = (raw_data[6]/131.0)*(PI/180); //[rad/s]
   //Calibrated Values
-  w_dot[0] -= w_dot_offset[0];   //[rad/s]
-  w_dot[1] -= w_dot_offset[1];   //[rad/s]
-  w_dot[2] -= w_dot_offset[2];   //[rad/s]
   x_ddot[0] -= x_ddot_offset[0]; //[m/s^2]
   x_ddot[1] -= x_ddot_offset[1]; //[m/s^2]
   x_ddot[2] -= x_ddot_offset[2]; //[m/s^2]
-  //Inferred Values
+  w_dot[0] -= w_dot_offset[0];   //[rad/s]
+  w_dot[1] -= w_dot_offset[1];   //[rad/s]
+  w_dot[2] -= w_dot_offset[2];   //[rad/s]
+  //Sensor Filtering
+  IMU_Gyro_Filter();
+  IMU_Accel_Filter();
+  //Inferred/Integrated Values
   static unsigned long last_time;
   float interval = (millis()-last_time)*0.001;
   w[0] += w_dot[0]*interval;      //[rad]
   w[1] += w_dot[1]*interval;      //[rad]
   w[2] += w_dot[2]*interval;      //[rad]
-  IMU_Filter();
-
+  
   x_dot[0] += x_ddot[0]*interval; //[m/s]
   x_dot[1] += x_ddot[1]*interval; //[m/s]
   x_dot[2] += x_ddot[2]*interval; //[m/s]
   last_time = millis();
   IMU_ISR_Flag = false;       //Reset Interrupt Flag
+
+  Serial.print("w_x:");Serial.print(w[0]*(180.0/PI));Serial.print(",");
+  Serial.print("w_y:");Serial.print(w[1]*(180.0/PI));Serial.print(",");
+  Serial.print("w_z:");Serial.print(w[2]*(180.0/PI));Serial.print(",");
+  //Serial.print("T:");Serial.print(T);Serial.print(",");
+  Serial.print("wd_x:");Serial.print(w_dot[0]);Serial.print(",");
+  Serial.print("wd_y:");Serial.print(w_dot[1]);Serial.print(",");
+  Serial.print("wd_z:");Serial.print(w_dot[2]);Serial.print(",");
+  //Serial.print("a_x:");Serial.print(x_ddot[0]);Serial.print(",");
+  //Serial.print("a_y:");Serial.print(x_ddot[1]);Serial.print(",");
+  //Serial.print("a_z:");Serial.print(x_ddot[2]);
+  Serial.print("\n");
+
 }
 void IRAM_ATTR Sensor_System::IMU_INTERRUPT(){
   IMU_ISR_Flag = true;
@@ -234,11 +301,5 @@ void Sensor_System::Init(){
 }
 void Sensor_System::Update(){
   IMU_Update();
-  Serial.printf("w_x = %f [rad] ",w[0]);
-  Serial.printf("w_y = %f [rad] ",w[1]);
-  Serial.printf("w_z = %f [rad]\n",w[2]);
-  Serial.printf("wd_x = %f [rad/s] ",w_dot[0]);
-  Serial.printf("wd_y = %f [rad/s] ",w_dot[1]);
-  Serial.printf("wd_z = %f [rad/s]\n",w_dot[2]);
   BAT_Update();
 }

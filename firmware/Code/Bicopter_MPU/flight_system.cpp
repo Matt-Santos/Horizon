@@ -47,13 +47,13 @@ void Flight_System::Update(){
   float R = (512*comms->MAVLINK_manual_control.z)/125.0+(512.0*comms->MAVLINK_manual_control.y)/625.0;
   L_PWM = (unsigned int) constrain(L,0,4096);
   R_PWM = (unsigned int) constrain(R,0,4096);
-  Serial.printf("MANUAL_CONTROL: ");
-  Serial.printf("x= %d ",comms->MAVLINK_manual_control.x);
-  Serial.printf("y= %d ",comms->MAVLINK_manual_control.y);
-  Serial.printf("z= %d ",comms->MAVLINK_manual_control.z);
-  Serial.printf("r= %d ",comms->MAVLINK_manual_control.r);
-  Serial.printf("L_PWM= %d ",L_PWM);
-  Serial.printf("R_PWM= %d \n",R_PWM);
+  // Serial.printf("MANUAL_CONTROL: ");
+  // Serial.printf("x= %d ",comms->MAVLINK_manual_control.x);
+  // Serial.printf("y= %d ",comms->MAVLINK_manual_control.y);
+  // Serial.printf("z= %d ",comms->MAVLINK_manual_control.z);
+  // Serial.printf("r= %d ",comms->MAVLINK_manual_control.r);
+  // Serial.printf("L_PWM= %d ",L_PWM);
+  // Serial.printf("R_PWM= %d \n",R_PWM);
   ledcWrite(Motor_PWM_L,L_PWM); //Update Left Motor
   ledcWrite(Motor_PWM_R,R_PWM); //Update Right Motor
 }

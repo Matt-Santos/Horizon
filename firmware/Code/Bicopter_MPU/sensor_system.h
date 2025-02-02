@@ -39,7 +39,8 @@ class Sensor_System {
     void IMU_Calibrate(); //Calibrates IMU offsets
   private:
     bool IMU_Init();
-    void IMU_Filter();    //Complementary Filter for Gyro Drift Control of pitch and roll
+    void IMU_Gyro_Filter();   //Complementary Filter to correct attitude drift (pitch and roll)
+    void IMU_Accel_Filter();  //LPF to improve stability
     void IMU_Update();
     static void IRAM_ATTR IMU_INTERRUPT();
   
