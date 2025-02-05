@@ -27,10 +27,23 @@ class Flight_System {
     //MOTOR Functions
   private:
     bool MOTOR_Init();
+    void MOTOR_ESC_Calibrate();
+
+
+  //Manual Control
+  //--------------------------
+  public:
+    //General Varriables
+    bool ARMED = false;
+    bool PREFLIGHT = false;
+    uint8_t BASE_MODE = 0;
+    uint8_t FLIGHT_MODE = 0;
+    
 
   //Flight System Class 
   //--------------------------
   public:
+    void Fast_Init();
     void Init();
     void Update();
     

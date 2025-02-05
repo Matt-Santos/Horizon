@@ -18,48 +18,28 @@
 #define STORAGE_SYSTEM_H
 
 #include <Preferences.h>
+#include <MAVLink_common.h>
 #include "FS.h"
 #include "SD_MMC.h"
+
+typedef struct _NVS_Param {
+  char param_id[16];            //Parameter ID (Text Label)
+  mavlink_param_union_t value;  //Parameter Value and Type
+} NVS_Param_t;
 
 class Storage_System {
 
   //Non Volitile Storage (NVS)
   //--------------------------
   public:
-    //NVS Namespaces
-    struct storage_storage {
-    } Storage;
-    struct storage_sensor{
-      uint32_t I2C_Freq = 400000;       //[Hz] I2C Clock Frequency
-      uint16_t IMU_Cal_Samples = 200;   //Number of Samples used in Calibration
-      int BAT_Period = 1;               //[ms] Time between Battery Measurements
-      int CAM_Size = 0;                 // 96x96
-      //int CAM_Size = 1;                 // 160x120
-      //int CAM_Size = 2;                 // 128x128
-      //int CAM_Size = 3;                 // 176x144
-      //int CAM_Size = 4;                 // 240x176
-      //int CAM_Size = 5;                 // 240x240
-      //int CAM_Size = 6;                 // 320x240
-      //int CAM_Size = 7;                 // 320x320
-      //int CAM_Size = 8;                 // 400x296
-      //int CAM_Size = 9;                 // 480x320
-      //int CAM_Size = 10;                // 640x480
-      //int CAM_Size = 11;                // 800x600
-      uint16_t accel_range = 2;         //[g] (valid entries are +/- 2,4,8,16)
-      uint16_t gyro_range = 250;        //[deg/s] (valid entries are +/- 250,500,1000,2000)
-    } Sensor;
-    struct storage_network {
-      String WIFI_SSID = "Bicopter";          //SSID
-      String WIFI_PASS = "Bicopter";          //Passwprd
-      const char* WIFI_Hostname = "Bicopter"; //Hostname
-      int WIFI_channel = 1;                   //Wifi Channel #
-      bool WIFI_Hidden = false;               //Hidden Wifi
-      int Wifi_Period = 2000;                 //[ms] Wifi Update Period
-    } Network;
-    struct storage_comms{
-    } Comms;
-    struct storage_flight{
-    } Flight;
+    //NVS Parameters
+    NVS_Param_t param[4] = {
+      {"TestparmA",{.param_float = 1.44,.type = MAVLINK_TYPE_FLOAT}},  //0
+      {"TestparmB",{.param_float = 2.44,.type = MAVLINK_TYPE_FLOAT}},  //1
+      {"TestparmC",{.param_float = 3.44,.type = MAVLINK_TYPE_FLOAT}},  //2
+      {"TestparmD",{.param_float = 4.44,.type = MAVLINK_TYPE_FLOAT}},  //3
+    };
+
     //NVS Functions
     bool NVS_readAll();
     bool NVS_writeAll();
@@ -84,6 +64,6 @@ class Storage_System {
   //Storage System Class 
   //--------------------------
   public:
-    void Init();                    //Storage Class Initializer
+    void Init();  //Storage Class Initializer
 };
 #endif

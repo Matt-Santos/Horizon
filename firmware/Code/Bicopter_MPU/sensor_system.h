@@ -44,6 +44,17 @@ class Sensor_System {
     void IMU_Update();
     static void IRAM_ATTR IMU_INTERRUPT();
   
+  //Global Position System (GPS)
+  //--------------------------
+  public:
+    int32_t GPS_latitude = 0;                 //[degE7] Latitude
+    int32_t GPS_longitude = 0;                //[degE7] Longitude
+    int32_t GPS_Altitude = 0;                 //[mm] MSL
+    int32_t GPS_Rel_Altitude = 0;             //[mm] Altitude above home
+    int16_t GPS_GroundVelocity[3] = {0,0,0};  //[cm/s] (Latitude,Longitude,Altitude)
+    uint16_t GPS_Heading = 0;                 //[deg] Heading
+
+
   //Battery Monitor (BAT)
   //--------------------------
   public:

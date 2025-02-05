@@ -9,16 +9,29 @@
 #include "flight_system.h"
 
 /* Todo
--configure the camera webserver with controls into network subsystem
--setup vlc to perform local GCS conversion/encoding of video feed to qGCS
--add complementary filter to the sensor system and improve sensor stability
--write the flight class
+
+-storage class
+  -verify NVS and SDCard functions
+
+-sensor class
+  -Finish Gyro Filter in Sensor System and improve sensor stability and orientation
+  -Add GPS system
+  -Add pressure sensor
+  
+-network class
+  -configure the camera webserver and setup vlc to perform local GCS conversion/encoding of video feed to qGCS
+
+-comms class
+  -arming ability (starts by giving ESC minimal throttle (to calibrate) in Comms)
+  -change control modes
+  -complete FTP Protocal and Metadata delivery
+
+-flight class
+  -add esc calibration procedure
   -Fix PWM Negative Value issue in motor output calculation
   -Reduce Upper and lower limits of PWM Value to ensure ESC can read
-  -Implement Flgiht Control PID system with storaged values
--add Additional MAVLINK Features in comms
-  -ability to read/write params in storage NVS
-  -arming ability (starts by giving ESC minimal throttle (to calibrate) in Comms)
+  -Implement stabilization PID system with storaged values
+
 -Note ESP32 Has two processors and could benifit from multithreading (flight calculations)
 */
 
@@ -31,13 +44,12 @@ Flight_System *flight = new Flight_System();
 
 //Startup
 void setup() {
-  delay(1000);
+  flight->Fast_Init();
   Serial.begin(9600,SERIAL_8N1);
   storage->Init();
   sensor->Init();
   network->Init();
   comms->Init();
-  flight->Init();
 }
 
 //Main Program Loop

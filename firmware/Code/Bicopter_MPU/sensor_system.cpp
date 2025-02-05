@@ -5,15 +5,21 @@
 #include "storage_system.h"
 
 //IMU Settings (MPU6050)
+#define I2C_Freq        400000  //[Hz] I2C Clock Frequency
 #define MPU6050_ADDR    0x68    //I2C Address
 #define IMU_SDA         26      //I2C Data Pin
 #define IMU_SCL         27      //I2C Clock Pin
 #define IMU_INT         1       //Interrupt Pin
+#define IMU_Cal_Samples 200     //Number of Samples used in Calibration
+#define IMU_accel_range 2       //[g] (valid entries are +/- 2,4,8,16)
+#define IMU_gyro_range  250     //[deg/s] (valid entries are +/- 250,500,1000,2000)
 
 //BATTERY Settings (ADC)
 #define BAT_SENSE       13      //GPIO Battery Pin
+#define BAT_Period      1       //[ms] Time between Battery Measurements
 
 //Camera Settings (OV2640)
+#define CAM_Size FRAMESIZE_96X96
 #define CAMERA_MODEL_WROVER_KIT
 #define CAM_Y2          4
 #define CAM_Y3          5
@@ -52,12 +58,12 @@ void Sensor_System::IMU_Calibrate(){
   //Perform Calibration Sampling
   float w_dot_cal[3] = {0};
   float x_ddot_cal[3] = {0};
-  for (uint16_t i=0;i<storage->Sensor.IMU_Cal_Samples;i++){
+  for (uint16_t i=0;i<IMU_Cal_Samples;i++){
     IMU_ISR_Flag = true;
     IMU_Update();
     for (uint8_t i=0;i<3;i++){
-      w_dot_cal[i]  += w_dot[i] /((float) storage->Sensor.IMU_Cal_Samples);
-      x_ddot_cal[i] += x_ddot[i]/((float) storage->Sensor.IMU_Cal_Samples);
+      w_dot_cal[i]  += w_dot[i] /((float) IMU_Cal_Samples);
+      x_ddot_cal[i] += x_ddot[i]/((float) IMU_Cal_Samples);
     }
     delay(10);
   }
@@ -78,10 +84,10 @@ bool Sensor_System::IMU_Init(){
   pinMode(IMU_SCL,INPUT_PULLUP);
   // pinMode(IMU_INT,INPUT_PULLUP); //(This apparently halts the code...)
   //Configure I2C Interface
-  success &= Wire.begin(IMU_SDA,IMU_SCL,storage->Sensor.I2C_Freq);
+  success &= Wire.begin(IMU_SDA,IMU_SCL,I2C_Freq);
   //Configure IMU Settings (MPU6050)
   uint8_t IMU_Accel_Reg, IMU_Gyro_Reg;
-  switch(storage->Sensor.accel_range){
+  switch(IMU_accel_range){
     case 2:
       IMU_Accel_Reg = 0x00;
       break;
@@ -95,7 +101,7 @@ bool Sensor_System::IMU_Init(){
       IMU_Accel_Reg = 0x18;
       break;
   }
-  switch(storage->Sensor.gyro_range){
+  switch(IMU_gyro_range){
     case 250:
       IMU_Gyro_Reg = 0x00;
       break;
@@ -137,12 +143,12 @@ void Sensor_System::IMU_Gyro_Filter(){
   //if (x_ddot_mag < upperlimit && x_ddot_mag > lowerlimit){
     //Perform Filtering
     float w_acc[3] = {
-      atan2f(x_ddot[1],x_ddot[2]-1.0),  //roll
-      atan2f(x_ddot[0],x_ddot[2]-1.0),  //pitch
+      atan2f(x_ddot[1]+x_ddot_offset[1],x_ddot[2]+x_ddot_offset[2]),  //roll
+      atan2f(x_ddot[0]+x_ddot_offset[0],x_ddot[2]+x_ddot_offset[2]),  //pitch
       0
     };
-    w[0] = w[0]*0.99 + w_acc[0]*0.01;   //roll
-    w[1] = w[1]*0.99 + w_acc[1]*0.01;   //pitch
+    w[0] = w[0]*0.95 + w_acc[0]*0.05;   //roll
+    w[1] = w[1]*0.95 + w_acc[1]*0.05;   //pitch
     //yaw (no absolute reference at the moment)
   //}
 }
@@ -198,24 +204,24 @@ void Sensor_System::IMU_Update(){
   w[0] += w_dot[0]*interval;      //[rad]
   w[1] += w_dot[1]*interval;      //[rad]
   w[2] += w_dot[2]*interval;      //[rad]
-  
   x_dot[0] += x_ddot[0]*interval; //[m/s]
   x_dot[1] += x_ddot[1]*interval; //[m/s]
   x_dot[2] += x_ddot[2]*interval; //[m/s]
   last_time = millis();
   IMU_ISR_Flag = false;       //Reset Interrupt Flag
 
-  Serial.print("w_x:");Serial.print(w[0]*(180.0/PI));Serial.print(",");
-  Serial.print("w_y:");Serial.print(w[1]*(180.0/PI));Serial.print(",");
-  Serial.print("w_z:");Serial.print(w[2]*(180.0/PI));Serial.print(",");
-  //Serial.print("T:");Serial.print(T);Serial.print(",");
-  Serial.print("wd_x:");Serial.print(w_dot[0]);Serial.print(",");
-  Serial.print("wd_y:");Serial.print(w_dot[1]);Serial.print(",");
-  Serial.print("wd_z:");Serial.print(w_dot[2]);Serial.print(",");
-  //Serial.print("a_x:");Serial.print(x_ddot[0]);Serial.print(",");
-  //Serial.print("a_y:");Serial.print(x_ddot[1]);Serial.print(",");
-  //Serial.print("a_z:");Serial.print(x_ddot[2]);
-  Serial.print("\n");
+  //Debug Print Code
+  // Serial.print("w_x:");Serial.print(w[0]*(180.0/PI));Serial.print(",");
+  // Serial.print("w_y:");Serial.print(w[1]*(180.0/PI));Serial.print(",");
+  // Serial.print("w_z:");Serial.print(w[2]*(180.0/PI));Serial.print(",");
+  // //Serial.print("T:");Serial.print(T);Serial.print(",");
+  // Serial.print("wd_x:");Serial.print(w_dot[0]);Serial.print(",");
+  // Serial.print("wd_y:");Serial.print(w_dot[1]);Serial.print(",");
+  // Serial.print("wd_z:");Serial.print(w_dot[2]);Serial.print(",");
+  // //Serial.print("a_x:");Serial.print(x_ddot[0]);Serial.print(",");
+  // //Serial.print("a_y:");Serial.print(x_ddot[1]);Serial.print(",");
+  // //Serial.print("a_z:");Serial.print(x_ddot[2]);
+  // Serial.print("\n");
 
 }
 void IRAM_ATTR Sensor_System::IMU_INTERRUPT(){
@@ -233,7 +239,7 @@ bool Sensor_System::BAT_Init(){
 }
 void Sensor_System::BAT_Update(){
   static int last_time;
-  if (millis() - last_time < storage->Sensor.BAT_Period) return;
+  if (millis() - last_time < BAT_Period) return;
   BAT_Level = analogRead(BAT_SENSE);
   last_time = millis();
 }
@@ -284,7 +290,7 @@ bool Sensor_System::CAM_Init(){
   success &= (err == ESP_OK);
   //Apply Default Settings
   sensor_t *s = esp_camera_sensor_get();
-  s->set_framesize(s, (framesize_t) storage->Sensor.CAM_Size);
+  s->set_framesize(s,CAM_Size);
   //s->set_brightness(s, 1);   // up the brightness just a bit
   //s->set_saturation(s, -1);  // lower the saturation
   // s->set_vflip(s, 1);

@@ -20,14 +20,26 @@ class Comms_System {
   //--------------------------
   public:
     //MAVLINK Varriables
-    mavlink_heartbeat_t MAVLINK_heartbeat;
-    mavlink_sys_status_t MAVLINK_sys_status;
+    mavlink_heartbeat_t MAVLINK_heartbeat;  //0
+    mavlink_sys_status_t MAVLINK_sys_status;  //1
+    mavlink_system_time_t MAVLINK_system_time;  //2
     mavlink_attitude_t MAVLINK_attitude;
-    mavlink_param_value_t MAVLINK_param_value;
-    mavlink_autopilot_version_t MAVLINK_autopilot_version;
+    mavlink_param_value_t MAVLINK_param_value;  //22
+    mavlink_param_set_t MAVLINK_param_set;  //23
+    mavlink_global_position_int_t MAVLINK_global_position_int;  //33
+    mavlink_file_transfer_protocol_t MAVLINK_ftp; //110
+    mavlink_autopilot_version_t MAVLINK_autopilot_version;  //148
     mavlink_manual_control_t MAVLINK_manual_control;
     mavlink_mission_count_t MAVLINK_mission_count;
-    mavlink_command_ack_t MAVLINK_command_ack;
+    mavlink_command_ack_t MAVLINK_command_ack;  //77
+    mavlink_statustext_t MAVLINK_statusText;  //253
+    mavlink_gimbal_manager_information_t MAVLINK_gimbalManagerInfo; //280
+    mavlink_protocol_version_t MAVLINK_protocolVersion; //300
+    mavlink_component_information_t MAVLINK_componentInfo;  //395
+    mavlink_component_metadata_t MAVLINK_componentMetaData; //397
+
+    uint8_t MAV_state = MAV_STATE_BOOT;
+    
   private:
     WiFiUDP udp;
     //MAVLINK Functions

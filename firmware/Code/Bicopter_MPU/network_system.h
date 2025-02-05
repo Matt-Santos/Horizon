@@ -4,8 +4,10 @@
 /* Author Notes
 - this system includes these submodules
   - Wifi Access Point (WIFI)
+  - FTP Server (FTP)
 - the WIFI module configures the wifi network
   - other systems may use it for communication
+- the FTP Server is used to serve ground control station's static data
 */
 
 #ifndef NETWORK_SYSTEM_H

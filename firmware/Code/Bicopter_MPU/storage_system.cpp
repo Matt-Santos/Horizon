@@ -17,20 +17,12 @@ Preferences prefs;
 //--------------------------
 bool Storage_System::NVS_readAll() {
   bool success = true;
-  success &= NVS_read(NAMESPACE, "Storage", Storage);
-  success &= NVS_read(NAMESPACE, "Sensor", Sensor);
-  success &= NVS_read(NAMESPACE, "Network", Network);
-  success &= NVS_read(NAMESPACE, "Comms", Comms);
-  success &= NVS_read(NAMESPACE, "Flight", Flight);
+  success &= NVS_read(NAMESPACE, "Param", param);
   return success;
 }
 bool Storage_System::NVS_writeAll() {
   bool success = true;
-  success &= NVS_write(NAMESPACE, "Storage", Storage);
-  success &= NVS_write(NAMESPACE, "Sensor", Sensor);
-  success &= NVS_write(NAMESPACE, "Network", Network);
-  success &= NVS_write(NAMESPACE, "Comms", Comms);
-  success &= NVS_write(NAMESPACE, "Flight", Flight);
+  success &= NVS_write(NAMESPACE, "Param", param);
   return success;
 }
 template<typename T_Storage>
