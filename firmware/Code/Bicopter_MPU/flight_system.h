@@ -7,6 +7,7 @@
   - (NAVIGATE)  //planned feature to regulate linear movement
   - (STABILIZE) //planned feature to regulate hover movement
   - (MANUAL)    //planned feature to enable manual control
+  
   - 
 - the MOTOR Control module handles motor PWM pulses
 */
@@ -43,7 +44,6 @@ class Flight_System {
   //Flight System Class 
   //--------------------------
   public:
-    void Fast_Init();
     void Init();
     void Update();
     

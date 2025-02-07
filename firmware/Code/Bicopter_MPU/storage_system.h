@@ -32,15 +32,12 @@ class Storage_System {
   //Non Volitile Storage (NVS)
   //--------------------------
   public:
-    //NVS Parameters
     NVS_Param_t param[4] = {
       {"TestparmA",{.param_float = 1.44,.type = MAVLINK_TYPE_FLOAT}},  //0
       {"TestparmB",{.param_float = 2.44,.type = MAVLINK_TYPE_FLOAT}},  //1
       {"TestparmC",{.param_float = 3.44,.type = MAVLINK_TYPE_FLOAT}},  //2
       {"TestparmD",{.param_float = 4.44,.type = MAVLINK_TYPE_FLOAT}},  //3
     };
-
-    //NVS Functions
     bool NVS_readAll();
     bool NVS_writeAll();
     template <typename T_Storage>
@@ -51,15 +48,14 @@ class Storage_System {
   //SDCard (Flash) Storage
   //--------------------------
   public:
-    //SD Card Varriables
     uint8_t SDCard_type;
     uint64_t SDCard_size;
-    //SDCard Functions
-    bool SDCARD_Init();
     bool SDCARD_createDir(const char *path);
     bool SDCARD_removeDir(const char *path);
     bool SDCARD_writeFile(const char *path, const char *data, const char* access_type);
     bool SDCARD_deleteFile(const char *path);
+  private:
+    bool SDCARD_Init();
 
   //Storage System Class 
   //--------------------------

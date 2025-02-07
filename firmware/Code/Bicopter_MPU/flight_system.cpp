@@ -27,14 +27,12 @@ bool Flight_System::MOTOR_Init(){
   success &= ledcSetClockSource((ledc_clk_cfg_t) 4); //APB clock
   success &= ledcAttach(Motor_PWM_L, PWM_Frequency, 12);
   success &= ledcAttach(Motor_PWM_R, PWM_Frequency, 12);
-  // success &= ledcWrite(Motor_PWM_L,0);
-  // success &= ledcWrite(Motor_PWM_R,0);
   success &= ledcOutputInvert(Motor_PWM_L,true);
   success &= ledcOutputInvert(Motor_PWM_R,true);
   MOTOR_ESC_Calibrate();
   return success;
 }
-void Flight_System::MOTOR_ESC_Calibrate(){  //Must be run at startup
+void Flight_System::MOTOR_ESC_Calibrate(){
   //Throttle Range Calibration Procedure
   ledcWrite(Motor_PWM_L,PWM_MAX); //Update Left Motor
   ledcWrite(Motor_PWM_R,PWM_MAX); //Update Right Motor
@@ -50,9 +48,6 @@ void Flight_System::MOTOR_ESC_Calibrate(){  //Must be run at startup
 
 //Flight System Class 
 //--------------------------
-void Flight_System::Fast_Init(){
-  MOTOR_Init();
-}
 void Flight_System::Init(){
   if(!MOTOR_Init()) Serial.println("Error Initializing Flight->Motor");
 }
@@ -69,14 +64,14 @@ void Flight_System::Update(){
   ledcWrite(Motor_PWM_R,R_PWM); //Update Right Motor
 
   //Debug Print Code
-  Serial.print("x_in:");
-  Serial.print(comms->MAVLINK_manual_control.x);Serial.print(",");
-  Serial.print("y_in:");
-  Serial.print(comms->MAVLINK_manual_control.y);Serial.print(",");
-  Serial.print("z_in:");
-  Serial.print(comms->MAVLINK_manual_control.z);Serial.print(",");
-  Serial.print("L:");
-  Serial.print(L_PWM);Serial.print(",");
-  Serial.print("R:");
-  Serial.println(R_PWM);
+  // Serial.print("x_in:");
+  // Serial.print(comms->MAVLINK_manual_control.x);Serial.print(",");
+  // Serial.print("y_in:");
+  // Serial.print(comms->MAVLINK_manual_control.y);Serial.print(",");
+  // Serial.print("z_in:");
+  // Serial.print(comms->MAVLINK_manual_control.z);Serial.print(",");
+  // Serial.print("L:");
+  // Serial.print(L_PWM);Serial.print(",");
+  // Serial.print("R:");
+  // Serial.println(R_PWM);
 }

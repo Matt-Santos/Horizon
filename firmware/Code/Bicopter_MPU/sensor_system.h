@@ -4,6 +4,8 @@
 /* Author Notes
 - this system includes these submodules
   - Inertia Measurement Unit (IMU) using the MPU6050
+  - Global Position System (GPS)
+  - Barometric Pressure Sensor (BAR)
   - Battery Monitor (BAT) using the builtin ADC
   - Camera Driver (CAM) using the OV2640
 - IMU module is interrupt controlled and maintains attitude information
@@ -16,6 +18,8 @@
 
 #include "Arduino.h"
 #include <Wire.h>
+#include <MPU6050.h>
+#include <TinyGPSMinus.h>
 #include "esp_camera.h"
 
 class Sensor_System {
@@ -23,65 +27,56 @@ class Sensor_System {
   //Inertia Measurement Unit (IMU)
   //--------------------------
   public:
-    //IMU Sensor Data
-    float x[3]      = {0,0,0};        //[m] Relative Position
-    float x_dot[3]  = {0,0,0};        //[m/s] Linear Velocity
-    float x_ddot[3] = {0,0,0};        //[m/s^2] Linear Acceleration
-    float w[3]      = {0,0,0};        //[rad] Angular Position
-    float w_dot[3]  = {0,0,0};        //[rad/s] Angular Velocity
-    float T         = 0;              //[C] Temperature
-    //IMU Calibration Values
-    float w_dot_offset[3] = {0,0,0};  //[rad/s] Angular Acceleration Offset
+    float x_dot[3] = {0,0,0};         //[m/s] Linear Velocity (inferred)
+    float x_ddot[3] = {0,0,0};        //[m/s^2] Linear Acceleration (measured)
+    float w[3] = {0,0,0};             //[rad] Angular Position (inferred)
+    float w_dot[3]  = {0,0,0};        //[rad/s] Angular Velocity (measured)
     float x_ddot_offset[3] = {0,0,0}; //[m/s^2] Linear Acceleration Offset
-    //IMU Interrupt Flag
-    static bool IMU_ISR_Flag;
-    //IMU Functions
-    void IMU_Calibrate(); //Calibrates IMU offsets
+    float w_dot_offset[3] = {0,0,0};  //[rad/s] Angular Velocity Offset
   private:
+    MPU6050 imu;
     bool IMU_Init();
-    void IMU_Gyro_Filter();   //Complementary Filter to correct attitude drift (pitch and roll)
-    void IMU_Accel_Filter();  //LPF to improve stability
+    void IMU_Filter();                //Various stability improvments
     void IMU_Update();
-    static void IRAM_ATTR IMU_INTERRUPT();
   
   //Global Position System (GPS)
   //--------------------------
   public:
-    int32_t GPS_latitude = 0;                 //[degE7] Latitude
-    int32_t GPS_longitude = 0;                //[degE7] Longitude
-    int32_t GPS_Altitude = 0;                 //[mm] MSL
-    int32_t GPS_Rel_Altitude = 0;             //[mm] Altitude above home
-    int16_t GPS_GroundVelocity[3] = {0,0,0};  //[cm/s] (Latitude,Longitude,Altitude)
-    uint16_t GPS_Heading = 0;                 //[deg] Heading
+    TinyGPSMinus gps;
+  private:
+    bool GPS_Init();
+    void GPS_Update();
 
+  //Barometric Pressure Sensor (BAR)
+  //--------------------------
+  public:
+    float pressure;                   //[hPa] Absolute Pressure
+  private:
+    bool BAR_Init();
+    void BAR_Update();
 
   //Battery Monitor (BAT)
   //--------------------------
   public:
-    //BAT Data
     uint16_t BAT_Level = 0;           //[] Battery Voltage
   private:
-    //BAT Functions
     bool BAT_Init();
     void BAT_Update();
   
   //Camera Driver (BAT)
   //--------------------------
   public:
-    //CAM Data
     camera_fb_t *fb;                  //Camera Frame Buffer
-    //CAM Functions
-    //---------------------
-    void CAM_GetFrame();  //Get Camera Frame
-    void CAM_FreeFrame(); //Free Camera Frame Memory
+    void CAM_GetFrame();              //Get Camera Frame
+    void CAM_FreeFrame();             //Free Camera Frame Memory
   private:
     bool CAM_Init();
 
   //Sensor System Class 
   //--------------------------
   public:
-    void Init();                  //Sensor Class Initializer
-    void Update();                //Update all Sensors
+    void Init();                      //Sensor Class Initializer
+    void Update();                    //Update all Sensors
     
 };
 

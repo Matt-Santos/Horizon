@@ -51,15 +51,6 @@ bool Storage_System::NVS_write(const char *name, const char *key, T_Storage &dat
 
 //SDCard (Flash) Storage
 //--------------------------
-bool Storage_System::SDCARD_Init() {
-  bool success = true;
-  success &= SD_MMC.setPins(SDCard_CLK, SDCard_CMD, SDCard_DAT);
-  success &= SD_MMC.begin("/sdcard", true);
-  //Get Card Info
-  SDCard_type = SD_MMC.cardType();
-  SDCard_size = SD_MMC.cardSize() / (1024 * 1024);
-  return success;
-}
 bool Storage_System::SDCARD_createDir(const char *path) {
   return SD_MMC.mkdir(path);
 }
@@ -78,7 +69,15 @@ bool Storage_System::SDCARD_writeFile(const char *path, const char *data, const 
 bool Storage_System::SDCARD_deleteFile(const char *path) {
   return SD_MMC.remove(path);
 }
-
+bool Storage_System::SDCARD_Init() {
+  bool success = true;
+  success &= SD_MMC.setPins(SDCard_CLK, SDCard_CMD, SDCard_DAT);
+  success &= SD_MMC.begin("/sdcard", true);
+  //Get Card Info
+  SDCard_type = SD_MMC.cardType();
+  SDCard_size = SD_MMC.cardSize() / (1024 * 1024);
+  return success;
+}
 //Storage System Class 
 //--------------------------
 void Storage_System::Init() {

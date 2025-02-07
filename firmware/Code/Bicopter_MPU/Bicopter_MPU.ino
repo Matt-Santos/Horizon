@@ -11,12 +11,16 @@
 /* Todo
 
 -storage class
-  -verify NVS and SDCard functions
+  -verify NVS
+  -add additional SDCard functions and test
 
 -sensor class
-  -Finish Gyro Filter in Sensor System and improve sensor stability and orientation
+  -Finish Gyro Filter in Sensor System
+  -Implement IMU from Library instead?
+  -Improve sensor stability and orientation for IMU
   -Add GPS system
   -Add pressure sensor
+  -improve camera system? (or just leave it to the network stack)
   
 -network class
   -configure the camera webserver and setup vlc to perform local GCS conversion/encoding of video feed to qGCS
@@ -27,9 +31,6 @@
   -complete FTP Protocal and Metadata delivery
 
 -flight class
-  -add esc calibration procedure
-  -Fix PWM Negative Value issue in motor output calculation
-  -Reduce Upper and lower limits of PWM Value to ensure ESC can read
   -Implement stabilization PID system with storaged values
 
 -Note ESP32 Has two processors and could benifit from multithreading (flight calculations)
@@ -44,18 +45,26 @@ Flight_System *flight = new Flight_System();
 
 //Startup
 void setup() {
-  flight->Fast_Init();
-  Serial.begin(9600,SERIAL_8N1);
-  storage->Init();
+  Serial.begin(115200,SERIAL_8N1);
+  // storage->Init();
   sensor->Init();
-  network->Init();
-  comms->Init();
+  // network->Init();
+  // comms->Init();
+  // flight->Init();
 }
+
+
 
 //Main Program Loop
 void loop() {
   sensor->Update();
-  network->Update();
-  comms->Update();
-  flight->Update();
+  // network->Update();
+  // comms->Update();
+  // flight->Update();
+
+  
+  // //Check Loop delay
+  // static unsigned long last;
+  // Serial.printf("Loop Delay = %d [us]\n",micros()-last);
+  // last = micros();
 }

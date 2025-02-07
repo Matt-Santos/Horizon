@@ -9,12 +9,13 @@
 //MAVLINK Settings (MAVLINK)
 #define MAV_SYSTEM_ID                 1
 #define MAV_COMP_ID                   1
-#define MAV_CHAN_ID                   1
+#define MAV_CHAN_ID                   MAVLINK_COMM_0
 #define MAVLINK_UDP_PORT              14550
 
 //Moved to Storage Class (after confirming parameter NVS saving)
 #define HeartBeat_Interval            1000
 #define SystemStatus_Interval         10000
+#define ADSB_Interval                 1000
 #define ATTITUDE_Interval             100
 #define GPS_POSITION_Interval         1000
 
@@ -62,15 +63,15 @@ bool Comms_System::MAVLINK_Init(){
     .target_system = MAV_SYSTEM_ID,
     .target_component = MAV_COMP_ID
   };
-  MAVLINK_gimbalManagerInfo = {
-    .cap_flags = 0b0000000100100100,
-    .roll_min = -PI,
-    .roll_max = PI,
-    .pitch_min = -PI,
-    .pitch_max = PI,
-    .yaw_min = -2*PI,
-    .yaw_max = 2*PI
-  };
+  // MAVLINK_gimbalManagerInfo = {
+  //   .cap_flags = 0b0000000100100100,
+  //   .roll_min = -PI,
+  //   .roll_max = PI,
+  //   .pitch_min = -PI,
+  //   .pitch_max = PI,
+  //   .yaw_min = -2*PI,
+  //   .yaw_max = 2*PI
+  // };
   MAVLINK_param_value.param_count = sizeof(storage->param)/sizeof(storage->param[0]);
   return true;
 }
@@ -173,10 +174,14 @@ bool Comms_System::MAVLINK_Process(mavlink_message_t msg){
               break;
             case MAVLINK_MSG_ID_COMPONENT_METADATA:  //397 (need to define file_crc and uri)
               MAVLINK_componentMetaData.time_boot_ms = millis();
+              strcpy(MAVLINK_componentMetaData.uri,"mftp://system_metadata.xml");
+              MAVLINK_componentMetaData.file_crc = 0x44;
               mavlink_msg_component_metadata_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&cmd_response_msg,&MAVLINK_componentMetaData);
               break;
             case MAVLINK_MSG_ID_COMPONENT_INFORMATION:  //395 (need to define file_crc and uri)
               MAVLINK_componentInfo.time_boot_ms = millis();
+              strcpy(MAVLINK_componentMetaData.uri,"mftp://system_info.xml");
+              MAVLINK_componentMetaData.file_crc = 0x42;
               mavlink_msg_component_information_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&cmd_response_msg,&MAVLINK_componentInfo);
               break;
             case MAVLINK_MSG_ID_GIMBAL_MANAGER_INFORMATION:  // 280 (update initialization gyro limits)
@@ -228,25 +233,50 @@ bool Comms_System::MAVLINK_Process(mavlink_message_t msg){
     case MAVLINK_MSG_ID_FILE_TRANSFER_PROTOCOL: //110 (WIP more functions to add)
       mavlink_msg_file_transfer_protocol_decode(&msg,&MAVLINK_ftp);
       if (MAVLINK_ftp.target_system == MAV_SYSTEM_ID){
-        switch(MAVLINK_ftp.payload[4]){ //opcode
-          case MAV_FTP_OPCODE_TERMINATESESSION:
-          case MAV_FTP_OPCODE_RESETSESSION:
-          case MAV_FTP_OPCODE_LISTDIRECTORY:
+        MAVLINK_ftp.payload[5] = MAVLINK_ftp.payload[3];  //Load Recieved OpCode
+        switch(MAVLINK_ftp.payload[3]){ //opcode
           case MAV_FTP_OPCODE_OPENFILERO:
-          case MAV_FTP_OPCODE_READFILE:
-          case MAV_FTP_OPCODE_CALCFILECRC:
-          case MAV_FTP_OPCODE_BURSTREADFILE:
-          case MAV_FTP_OPCODE_NAK:
-          case MAV_FTP_OPCODE_ENUM_END:
-          case MAV_FTP_OPCODE_NONE:
-          case MAV_FTP_OPCODE_ACK:
+            if (storage->SDCARD_createDir((const char*) &MAVLINK_ftp.payload[12])) {
+              MAVLINK_ftp.payload[3] = MAV_FTP_OPCODE_ACK;
+            }
+            else{
+              MAVLINK_ftp.payload[3] = MAV_FTP_OPCODE_NAK;
+              MAVLINK_ftp.payload[12] = MAV_FTP_ERR_FILEEXISTS;
+            }
+            MAVLINK_ftp.payload[4] = 0; //payload size
+            break;
+          // case MAV_FTP_OPCODE_OPENFILEWO:
+          // case MAV_FTP_OPCODE_READFILE:
+          // case MAV_FTP_OPCODE_CREATEFILE:
+          // case MAV_FTP_OPCODE_WRITEFILE:
+          // case MAV_FTP_OPCODE_LISTDIRECTORY:
+          case MAV_FTP_OPCODE_CREATEDIRECTORY:  //done
+            if (storage->SDCARD_createDir((const char*) &MAVLINK_ftp.payload[12])) {
+              MAVLINK_ftp.payload[3] = MAV_FTP_OPCODE_ACK;
+            }
+            else{
+              MAVLINK_ftp.payload[3] = MAV_FTP_OPCODE_NAK;
+              MAVLINK_ftp.payload[12] = MAV_FTP_ERR_FILEEXISTS;
+            }
+            MAVLINK_ftp.payload[4] = 0; //payload size
+            break;
+          // case MAV_FTP_OPCODE_RENAME:
+          // case MAV_FTP_OPCODE_CALCFILECRC:
+          // case MAV_FTP_OPCODE_BURSTREADFILE:
+          // case MAV_FTP_OPCODE_RESETSESSION:
+          // case MAV_FTP_OPCODE_TERMINATESESSION:
+          case MAV_FTP_OPCODE_NONE: //Send ACK
+            MAVLINK_ftp.payload[3] = MAV_FTP_OPCODE_ACK;
+            MAVLINK_ftp.payload[4] = 0;  //payload size
+            break;
           default:
             Serial.print("Recieved Unexpected MAVLink FTP Opcode: ");
-            Serial.println(MAVLINK_ftp.payload[4]);
+            Serial.println(MAVLINK_ftp.payload[3]);
             break;
         }
       }
-      //Send Response (ACK or NAK)
+      //Send Response
+      mavlink_msg_file_transfer_protocol_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_ftp);
       MAVLINK_Write(msg);
       break;
     default:
@@ -258,38 +288,40 @@ bool Comms_System::MAVLINK_Process(mavlink_message_t msg){
 }
 void Comms_System::MAVLINK_Streams(){
   mavlink_message_t msg;
-  if(Stream_Check(0,HeartBeat_Interval)){
+  if(Stream_Check(0,HeartBeat_Interval)){ //Heartbeat
     mavlink_msg_heartbeat_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_heartbeat);
     MAVLINK_Write(msg);
   }
-  if(Stream_Check(1,SystemStatus_Interval)){
+  if(Stream_Check(1,SystemStatus_Interval)){  //System Status
     MAVLINK_sys_status.voltage_battery = sensor->BAT_Level;
     mavlink_msg_sys_status_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_sys_status);
     MAVLINK_Write(msg);
   }
-  if(Stream_Check(2,ATTITUDE_Interval)){
-    MAVLINK_attitude.time_boot_ms = millis();  //Overflows in 49 days
-    MAVLINK_attitude.roll = (float) sensor->w[0];
-    MAVLINK_attitude.pitch = (float) sensor->w[1];
-    MAVLINK_attitude.yaw = (float) sensor->w[2];
-    MAVLINK_attitude.rollspeed = (float) sensor->w_dot[0];
-    MAVLINK_attitude.pitchspeed = (float) sensor->w_dot[1];
-    MAVLINK_attitude.yawspeed = (float) sensor->w_dot[2];
-    mavlink_msg_attitude_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_attitude);
-    MAVLINK_Write(msg);
+  if(Stream_Check(2,ATTITUDE_Interval)){  //Attitude
+    // MAVLINK_attitude.time_boot_ms = millis();
+    // MAVLINK_attitude.roll = (float) sensor->w[0];
+    // MAVLINK_attitude.pitch = (float) sensor->w[1];
+    // MAVLINK_attitude.yaw = (float) sensor->w[2];
+    // MAVLINK_attitude.rollspeed = (float) sensor->w_dot[0];
+    // MAVLINK_attitude.pitchspeed = (float) sensor->w_dot[1];
+    // MAVLINK_attitude.yawspeed = (float) sensor->w_dot[2];
+    // mavlink_msg_attitude_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_attitude);
+    // MAVLINK_Write(msg);
   }
+  //Altitude
+
   if(Stream_Check(3,GPS_POSITION_Interval)){
-    MAVLINK_global_position_int.time_boot_ms = millis();
-    MAVLINK_global_position_int.alt = sensor->GPS_Altitude;
-    MAVLINK_global_position_int.lat = sensor->GPS_latitude;
-    MAVLINK_global_position_int.lon = sensor->GPS_longitude;
-    MAVLINK_global_position_int.relative_alt = sensor->GPS_Rel_Altitude;
-    MAVLINK_global_position_int.hdg = sensor->GPS_Heading;
-    MAVLINK_global_position_int.vx = sensor->GPS_GroundVelocity[0];
-    MAVLINK_global_position_int.vy = sensor->GPS_GroundVelocity[1];
-    MAVLINK_global_position_int.vz = sensor->GPS_GroundVelocity[2];
-    mavlink_msg_global_position_int_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_global_position_int);
-    MAVLINK_Write(msg);
+    // MAVLINK_global_position_int.time_boot_ms = millis();
+    // MAVLINK_global_position_int.alt = sensor->gps.altitude()/1000;  //[mm]
+    // MAVLINK_global_position_int.lat = ;
+    // MAVLINK_global_position_int.lon = ;
+    // MAVLINK_global_position_int.relative_alt = ;
+    // MAVLINK_global_position_int.hdg = ;
+    // MAVLINK_global_position_int.vx = ;
+    // MAVLINK_global_position_int.vy = ;
+    // MAVLINK_global_position_int.vz = ;
+    // mavlink_msg_global_position_int_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_global_position_int);
+    // MAVLINK_Write(msg);
   }
 }
 bool Comms_System::Stream_Check(int ID,int interval){
