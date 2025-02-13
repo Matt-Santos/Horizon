@@ -15,11 +15,10 @@
   -add additional SDCard functions and test
 
 -sensor class
-  -Finish Gyro Filter in Sensor System
-  -Implement IMU from Library instead?
-  -Improve sensor stability and orientation for IMU
-  -Add GPS system
-  -Add pressure sensor
+  -Perfect IMU Offset Calibration, orientation/frame directionality and Filtering
+  -Increase GPS SampleRate and optimize messages
+  -Use pressure Sensor for altitude complementary filter
+  -Calibrate the  Battery Sensor (and send to comms)
   -improve camera system? (or just leave it to the network stack)
   
 -network class
@@ -31,6 +30,8 @@
   -complete FTP Protocal and Metadata delivery
 
 -flight class
+  -Implement Pitch Motor Calibration
+  -Perfect ESC Motor Calibration
   -Implement stabilization PID system with storaged values
 
 -Note ESP32 Has two processors and could benifit from multithreading (flight calculations)
@@ -45,12 +46,14 @@ Flight_System *flight = new Flight_System();
 
 //Startup
 void setup() {
-  Serial.begin(115200,SERIAL_8N1);
-  // storage->Init();
+  Serial.begin(9600,SERIAL_8N1);
+  while (!Serial){}
+  Serial.println("Starting Up");
+  storage->Init();
   sensor->Init();
-  // network->Init();
-  // comms->Init();
-  // flight->Init();
+  network->Init();
+  comms->Init();
+  flight->Init();
 }
 
 
@@ -58,9 +61,9 @@ void setup() {
 //Main Program Loop
 void loop() {
   sensor->Update();
-  // network->Update();
-  // comms->Update();
-  // flight->Update();
+  network->Update();
+  comms->Update();
+  flight->Update();
 
   
   // //Check Loop delay

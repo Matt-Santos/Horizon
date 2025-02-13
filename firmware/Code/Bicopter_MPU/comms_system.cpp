@@ -13,11 +13,12 @@
 #define MAVLINK_UDP_PORT              14550
 
 //Moved to Storage Class (after confirming parameter NVS saving)
-#define HeartBeat_Interval            1000
-#define SystemStatus_Interval         10000
-#define ADSB_Interval                 1000
-#define ATTITUDE_Interval             100
-#define GPS_POSITION_Interval         1000
+#define HeartBeat_Interval            1000    //[ms]
+#define SystemStatus_Interval         10000   //[ms]
+#define ATTITUDE_Interval             100     //[ms]
+#define ALTITUDE_Interval             100     //[ms]
+#define GPS_POSITION_Interval         1000    //[ms]
+#define GPS_RAW_Interval              1000    //[ms]
 
 //Make this the size of above storage section
 #define MAX_LENGTH_SENDS              20   //Maximum Number of SEND MESSAGES
@@ -34,7 +35,7 @@ bool Comms_System::MAVLINK_Init(){
    MAVLINK_heartbeat = {
     .type = MAV_TYPE_TRICOPTER,
     .autopilot = MAV_AUTOPILOT_GENERIC,
-    .base_mode = flight->BASE_MODE,
+    .base_mode = MAV_MODE_FLAG_MANUAL_INPUT_ENABLED,
     .system_status = MAV_state
   };
   MAVLINK_sys_status = {
@@ -206,7 +207,7 @@ bool Comms_System::MAVLINK_Process(mavlink_message_t msg){
           MAVLINK_command_ack.result = MAV_RESULT_ACCEPTED;
           break;
         case MAV_CMD_DO_SET_MODE: //176
-          flight->FLIGHT_MODE = cmd.param1;
+          // flight->flight_mode = cmd.param1;
           MAVLINK_command_ack.result = MAV_RESULT_ACCEPTED;
           break;
         default:
@@ -298,30 +299,60 @@ void Comms_System::MAVLINK_Streams(){
     MAVLINK_Write(msg);
   }
   if(Stream_Check(2,ATTITUDE_Interval)){  //Attitude
-    // MAVLINK_attitude.time_boot_ms = millis();
-    // MAVLINK_attitude.roll = (float) sensor->w[0];
-    // MAVLINK_attitude.pitch = (float) sensor->w[1];
-    // MAVLINK_attitude.yaw = (float) sensor->w[2];
-    // MAVLINK_attitude.rollspeed = (float) sensor->w_dot[0];
-    // MAVLINK_attitude.pitchspeed = (float) sensor->w_dot[1];
-    // MAVLINK_attitude.yawspeed = (float) sensor->w_dot[2];
-    // mavlink_msg_attitude_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_attitude);
-    // MAVLINK_Write(msg);
+    MAVLINK_attitude.time_boot_ms = millis();
+    MAVLINK_attitude.roll = (float) sensor->w[0];
+    MAVLINK_attitude.pitch = (float) sensor->w[1];
+    MAVLINK_attitude.yaw = (float) sensor->w[2];
+    MAVLINK_attitude.rollspeed = (float) sensor->w_dot[0];
+    MAVLINK_attitude.pitchspeed = (float) sensor->w_dot[1];
+    MAVLINK_attitude.yawspeed = (float) sensor->w_dot[2];
+    mavlink_msg_attitude_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_attitude);
+    MAVLINK_Write(msg);
   }
-  //Altitude
+  if(Stream_Check(3,ALTITUDE_Interval)){  //Altitude
+    MAVLINK_altitude.time_usec = micros();
+    MAVLINK_altitude.altitude_monotonic = 0;
+    MAVLINK_altitude.altitude_amsl = 0;
+    MAVLINK_altitude.altitude_local = 0;
+    MAVLINK_altitude.altitude_relative = 0;
+    MAVLINK_altitude.altitude_terrain = -1000;
+    MAVLINK_altitude.bottom_clearance = -1;
+    mavlink_msg_altitude_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_altitude);
+    MAVLINK_Write(msg);
+  }
+  // if(Stream_Check(4,GPS_POSITION_Interval)){  //Global Position Estimate
+  //   MAVLINK_global_position_int.time_boot_ms = millis();
+  //   MAVLINK_global_position_int.alt = sensor->altitude;             //[mm] MSL Altitude
+  //   MAVLINK_global_position_int.lat = sensor->latitude;             //[degE7] Latitude
+  //   MAVLINK_global_position_int.lon = sensor->longitude;            //[degE7] Longitude
+  //   // MAVLINK_global_position_int.relative_alt = ;  //[mm] Altitude above Home
+  //   // MAVLINK_global_position_int.hdg = sensor->gps.course()/100.0;   //[deg] Vehicle heading
+  //   // MAVLINK_global_position_int.vx = sensor->x_dot[0]*100.0;  //[cm/s] Ground speed along North Axis
+  //   // MAVLINK_global_position_int.vy = sensor->x_dot[1]*100.0;  //[cm/s] Ground speed along East Axis
+  //   // MAVLINK_global_position_int.vz = sensor->x_dot[2]*100.0;  //[cm/s] Ground speed along Altitude (positive down)
+  //   mavlink_msg_global_position_int_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_global_position_int);
+  //   MAVLINK_Write(msg);
+  // }
+  if(Stream_Check(5,GPS_RAW_Interval)){  //GPS Raw Sensor Data
+    MAVLINK_gps_raw.time_usec = micros();
+    MAVLINK_gps_raw.lat = sensor->latitude;               //[degE7] Latitude
+    MAVLINK_gps_raw.lon = sensor->longitude;              //[degE7] Latitude
+    MAVLINK_gps_raw.alt = sensor->gps.altitude()*10;      //[mm] MSL Altitude
+    MAVLINK_gps_raw.eph = sensor->gps.hdop();             //[] Horizontal Dilution of Position
+    MAVLINK_gps_raw.epv = UINT16_MAX;                     //[] Vertical Dilution of Position
+    MAVLINK_gps_raw.vel = sensor->gps.f_speed_mps()*100;  //[cm/s] 
+    MAVLINK_gps_raw.cog = sensor->gps.course();           //[deg*100] Course (direction of movement)
+    MAVLINK_gps_raw.fix_type = GPS_FIX_TYPE_3D_FIX;
+    MAVLINK_gps_raw.satellites_visible = sensor->gps.satellites();
 
-  if(Stream_Check(3,GPS_POSITION_Interval)){
-    // MAVLINK_global_position_int.time_boot_ms = millis();
-    // MAVLINK_global_position_int.alt = sensor->gps.altitude()/1000;  //[mm]
-    // MAVLINK_global_position_int.lat = ;
-    // MAVLINK_global_position_int.lon = ;
-    // MAVLINK_global_position_int.relative_alt = ;
-    // MAVLINK_global_position_int.hdg = ;
-    // MAVLINK_global_position_int.vx = ;
-    // MAVLINK_global_position_int.vy = ;
-    // MAVLINK_global_position_int.vz = ;
-    // mavlink_msg_global_position_int_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_global_position_int);
-    // MAVLINK_Write(msg);
+    MAVLINK_gps_raw.h_acc = 100;
+    MAVLINK_gps_raw.v_acc = 100;
+    MAVLINK_gps_raw.vel_acc = 100;
+    MAVLINK_gps_raw.hdg_acc = 100;
+
+    // MAVLINK_gps_raw.yaw = sensor->gps.
+    mavlink_msg_gps_raw_int_encode_chan(MAV_SYSTEM_ID,MAV_COMP_ID,MAV_CHAN_ID,&msg,&MAVLINK_gps_raw);
+    MAVLINK_Write(msg);
   }
 }
 bool Comms_System::Stream_Check(int ID,int interval){

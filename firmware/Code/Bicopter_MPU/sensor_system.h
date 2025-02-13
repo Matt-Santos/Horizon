@@ -19,7 +19,8 @@
 #include "Arduino.h"
 #include <Wire.h>
 #include <MPU6050.h>
-#include <TinyGPSMinus.h>
+#include <TinyGPS.h>
+#include <BMP180I2C.h>
 #include "esp_camera.h"
 
 class Sensor_System {
@@ -33,6 +34,10 @@ class Sensor_System {
     float w_dot[3]  = {0,0,0};        //[rad/s] Angular Velocity (measured)
     float x_ddot_offset[3] = {0,0,0}; //[m/s^2] Linear Acceleration Offset
     float w_dot_offset[3] = {0,0,0};  //[rad/s] Angular Velocity Offset
+
+    // float ferraris_offsets = {0};
+    // bool Ferraris_Calibration();      //Perform Manual Orientation Calibration
+
   private:
     MPU6050 imu;
     bool IMU_Init();
@@ -42,7 +47,10 @@ class Sensor_System {
   //Global Position System (GPS)
   //--------------------------
   public:
-    TinyGPSMinus gps;
+    int32_t latitude = 0;             //[degE7] Latitude
+    int32_t longitude = 0;            //[degE7] Longitude
+    int32_t altitude = 0;             //[mm]  Altitude (MSL)
+    TinyGPS gps;
   private:
     bool GPS_Init();
     void GPS_Update();
@@ -50,8 +58,10 @@ class Sensor_System {
   //Barometric Pressure Sensor (BAR)
   //--------------------------
   public:
-    float pressure;                   //[hPa] Absolute Pressure
+    float temp = 0;                   //[C] Ambient Temperature 
+    float pressure = 0;               //[Pa] Local Pressure
   private:
+    BMP180I2C bar = BMP180I2C(0x77);
     bool BAR_Init();
     void BAR_Update();
 
