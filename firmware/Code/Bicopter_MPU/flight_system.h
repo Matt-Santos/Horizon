@@ -45,11 +45,12 @@ class Flight_System {
   private:
     double L_Motor = 0;           //[%] Power to Left Motor  [0,100.0]
     double R_Motor = 0;           //[%] Power to Right Motor [0,100.0]
-    double P_Motor = 0;           //[%] Position of Pitch Motor [0,100]
+    double P_Motor = 0;           //[%] Target Position of Pitch Motor [0,100]
     PCA9685 motor;                //PCA9685 PWM Driver Object
     bool MOTOR_Init();
     void MOTOR_ESC_Calibrate();
     void MOTOR_Pitch_Calibrate();
+    void MOTOR_Pitch_Control(float target);
     void MOTOR_Update();
 
   //Flight Control Modes (MODE)
