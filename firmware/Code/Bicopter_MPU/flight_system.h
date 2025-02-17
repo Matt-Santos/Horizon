@@ -50,7 +50,7 @@ class Flight_System {
     bool MOTOR_Init();
     void MOTOR_ESC_Calibrate();
     void MOTOR_Pitch_Calibrate();
-    void MOTOR_Pitch_Control(float target);
+    bool MOTOR_Pitch_Control(float target);
     void MOTOR_Update();
 
   //Flight Control Modes (MODE)
