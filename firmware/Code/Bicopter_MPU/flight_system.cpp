@@ -7,7 +7,7 @@
 #include "comms_system.h"
 
 //Debug Flags
-#define MOTOR_Debug
+// #define MOTOR_Debug
 // #define MODE_Debug
 
 //I2C Interface
@@ -18,7 +18,7 @@
 //Motor Settings (MOTOR)
 #define PCA9685_Addrs     0x40  //PCA9685 I2C Address
 #define Motor_OE_Pin      32    //PCA9685 Output Enable Pin
-#define PWM_Frequency     400   //[Hz] PWM Output Frequency
+#define PWM_Frequency     24    //[Hz] PWM Output Frequency
 #define L_Motor_Chan      0     //Left  Motor Output Channel
 #define R_Motor_Chan      1     //Right Motor Output Channel
 #define P_Motor_ChanE     2     //Pitch Motor Enable
@@ -26,8 +26,8 @@
 #define P_Motor_ChanA2    5     //Pitch Motor Output Channel A2
 #define P_Motor_ChanB1    7     //Pitch Motor Output Channel B1
 #define P_Motor_ChanB2    6     //Pitch Motor Output Channel B2
-#define P_Motor_Tol       1     //[%] Pitch Motor Control Tolerene
-#define P_Motor_Count     500   //Number of Pulses to travel Full Pitch Motor Range
+#define P_Motor_Tol       0.1   //[%] Pitch Motor Control Tolerene
+#define P_Motor_Count     70    //Number of Pulses to travel Full Pitch Motor Range
 #define PWM_MIN           5     //Minimum PWM Output
 #define PWM_MAX           95    //Maximum PWM Output
 
@@ -51,121 +51,86 @@ bool Flight_System::MOTOR_Init(){
   motor.setOutputsNotInverted();
   //Set Disabled Mode
   motor.setOutputsLowWhenDisabled();
+  //Set Pitch Motor Forwards
+  motor.setChannelDutyCycle(P_Motor_ChanA1,37.5,0);
+  motor.setChannelDutyCycle(P_Motor_ChanA2,37.5,50);
+  motor.setChannelDutyCycle(P_Motor_ChanB1,37.5,25);
+  motor.setChannelDutyCycle(P_Motor_ChanB2,37.5,75);
+  //Calibrate Motors
   MOTOR_ESC_Calibrate();
   MOTOR_Pitch_Calibrate();
   return success;
 }
 void Flight_System::MOTOR_ESC_Calibrate(){
   //Calibrate ESC Throttle Max
-  motor.enableOutputs(Motor_OE_Pin);
   motor.setChannelDutyCycle(L_Motor_Chan,PWM_MAX);
   motor.setChannelDutyCycle(R_Motor_Chan,PWM_MAX);
-  delay(3000);  //Wait for two beeps
+  motor.enableOutputs(Motor_OE_Pin);
+  delay(2200);  //Wait for two beeps
   //Calibrate ESC Throttle Min
   motor.setChannelDutyCycle(L_Motor_Chan,PWM_MIN);
   motor.setChannelDutyCycle(R_Motor_Chan,PWM_MIN);
   //Shutdown ESC
-  delay(3000);
+  delay(10000);
   motor.disableOutputs(Motor_OE_Pin);
   motor.setChannelDutyCycle(L_Motor_Chan,0.0);
   motor.setChannelDutyCycle(R_Motor_Chan,0.0);
 }
 void Flight_System::MOTOR_Pitch_Calibrate(){
   //Force Pitch Motor to Zero Point
-  for(int i=0;i<P_Motor_Count;i++){
-    while(!MOTOR_Pitch_Control(100+P_Motor_Tol)){
-      // delay(1);
-    }
-  }
-  //Set Initial Target Pitch Position to Midpoint
+  motor.enableOutputs(Motor_OE_Pin);
+  motor.setChannelDutyCycle(P_Motor_ChanE,100.0,0.0);
+  MOTOR_Pitch_Control(100 + P_Motor_Tol);
+  delay(P_Motor_Count/PWM_Frequency*1000);
+  motor.disableOutputs(Motor_OE_Pin);
+  //Set Initial Pitch Position to Midpoint
   P_Motor = 50.0;
 }
-bool Flight_System::MOTOR_Pitch_Control(float target){
+void Flight_System::MOTOR_Pitch_Control(float target){
   static float position = 50;     //[%] Motor Position as % of Range
-  static long last;               //[us] Time between Function Calls
-  static uint8_t index = 0;       //Current Servo Position State
-  float udelay = 100;            //[us] Update Delay
+  static long last;               //[ms] Time between Function Calls
+  static bool forwards = true;
+  static bool enabled = false;
 
-  //Rotation Speed Control [us]
-  if(micros()-last < udelay) return false;
-  //Update Servo State
-  switch(index){
-    case 0:
-      motor.setChannelDutyCycle(P_Motor_ChanA1,100);
-      motor.setChannelDutyCycle(P_Motor_ChanA2,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB2,0);
-      break;
-    case 1:
-      motor.setChannelDutyCycle(P_Motor_ChanA1,100);
-      motor.setChannelDutyCycle(P_Motor_ChanA2,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB1,100);
-      motor.setChannelDutyCycle(P_Motor_ChanB2,0);
-      break;
-    case 2:
-      motor.setChannelDutyCycle(P_Motor_ChanA1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanA2,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB1,100);
-      motor.setChannelDutyCycle(P_Motor_ChanB2,0);
-      break;
-    case 3:
-      motor.setChannelDutyCycle(P_Motor_ChanA1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanA2,100);
-      motor.setChannelDutyCycle(P_Motor_ChanB1,100);
-      motor.setChannelDutyCycle(P_Motor_ChanB2,0);
-      break;
-    case 4:
-      motor.setChannelDutyCycle(P_Motor_ChanA1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanA2,100);
-      motor.setChannelDutyCycle(P_Motor_ChanB1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB2,0);
-      break;
-    case 5:
-      motor.setChannelDutyCycle(P_Motor_ChanA1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanA2,100);
-      motor.setChannelDutyCycle(P_Motor_ChanB1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB2,100);
-      break;
-    case 6:
-      motor.setChannelDutyCycle(P_Motor_ChanA1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanA2,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB2,100);
-      break;
-    case 7:
-      motor.setChannelDutyCycle(P_Motor_ChanA1,100);
-      motor.setChannelDutyCycle(P_Motor_ChanA2,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB1,0);
-      motor.setChannelDutyCycle(P_Motor_ChanB2,100);
-      break;
+  //Pitch Direction Control
+  if(forwards != position < target){
+    if(position < target){
+      motor.setChannelDutyCycle(P_Motor_ChanB1,37.5,25);
+      motor.setChannelDutyCycle(P_Motor_ChanB2,37.5,75);
+      forwards = true;
+    }
+    else{
+      motor.setChannelDutyCycle(P_Motor_ChanB1,37.5,75);
+      motor.setChannelDutyCycle(P_Motor_ChanB2,37.5,25);
+      forwards = false;
+    }
   }
-  //Pitch Direction and Enable Control
-  if(position < target - P_Motor_Tol){
-    index = (index+1) % 8;
-    position += 100.0/P_Motor_Count;
-    motor.setChannelDutyCycle(P_Motor_ChanE,100.0,0.0);
-  }
-  else if(position > target + P_Motor_Tol){
-    index = (index-1) % 8;
-    position -= 100.0/P_Motor_Count;
-    motor.setChannelDutyCycle(P_Motor_ChanE,100.0,0.0);
+
+  //Enable Control
+  if(position < target - P_Motor_Tol || position > target + P_Motor_Tol){
+    if(!enabled){
+      motor.setChannelDutyCycle(P_Motor_ChanE,100);
+      enabled = true;
+    }
+    //Update Position
+    position -= 100.0*PWM_Frequency/P_Motor_Count*(micros()-last)/1000000.0*(1-2*forwards);
+    position = constrain(position,0.0,100.0);
   }
   else{
-    motor.setChannelDutyCycle(P_Motor_ChanE,0.0,0.0);
+    motor.setChannelDutyCycle(P_Motor_ChanE,0);
+    enabled = false;
   }
-  //Update Function Values
-  position = constrain(position,0.0,100.0);
+  // Serial.printf("position:%f,delay:%d\n",position,micros()-last);
   last = micros();
-
-  Serial.printf("position:%f\n",position);
-  return true;
 }
 void Flight_System::MOTOR_Update(){
   //Update Armed Status
-  if (ARMED)
+  if (ARMED){
     motor.enableOutputs(Motor_OE_Pin);
-  else
+  }
+  else{
     motor.disableOutputs(Motor_OE_Pin);
+  }
   //Update Motor Setpoints
   motor.setChannelDutyCycle(L_Motor_Chan,L_Motor);
   motor.setChannelDutyCycle(R_Motor_Chan,R_Motor);
