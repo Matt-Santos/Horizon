@@ -2,13 +2,12 @@
 //Written by Matthew Santos
 
 #include "flight_system.h"
-#include "storage_system.h"
 #include "sensor_system.h"
 #include "comms_system.h"
 
 //Debug Flags
-// #define MOTOR_Debug
-// #define MODE_Debug
+#define MOTOR_Debug
+#define MODE_Debug
 
 //I2C Interface
 #define I2C_SDA         26      //I2C Data Pin
@@ -18,7 +17,7 @@
 //Motor Settings (MOTOR)
 #define PCA9685_Addrs     0x40  //PCA9685 I2C Address
 #define Motor_OE_Pin      32    //PCA9685 Output Enable Pin
-#define PWM_Frequency     400   //[Hz] PWM Output Frequency
+#define PWM_Frequency     50    //[Hz] PWM Output Frequency
 #define L_Motor_Chan      0     //Left  Motor Output Channel
 #define R_Motor_Chan      1     //Right Motor Output Channel
 #define P_Motor_ChanE     2     //Pitch Motor Enable
@@ -26,12 +25,13 @@
 #define P_Motor_ChanA2    5     //Pitch Motor Output Channel A2
 #define P_Motor_ChanB1    7     //Pitch Motor Output Channel B1
 #define P_Motor_ChanB2    6     //Pitch Motor Output Channel B2
-#define P_Motor_Tol       0.1   //[%] Pitch Motor Control Tolerene
-#define P_Motor_Count     70    //Number of Pulses to travel Full Pitch Motor Range
+#define P_Motor_Tol       1     //[%] Pitch Motor Control Tolerene
+#define P_Motor_Count     500   //Number of Pulses to travel Full Pitch Motor Range
 #define PWM_MIN           5     //Minimum PWM Output
-#define PWM_MAX           95    //Maximum PWM Output
+#define PWM_MAX           10    //Maximum PWM Output
+#define P_Motor_MIN       5     //Minimum Pitch Motor Position
+#define P_Motor_MAX       95    //Maximum Pitch Motor Position
 
-extern Storage_System *storage;
 extern Sensor_System *sensor;
 extern Comms_System *comms;
 
@@ -47,15 +47,12 @@ bool Flight_System::MOTOR_Init(){
   motor.setupSingleDevice(Wire,PCA9685_Addrs);
   motor.setupOutputEnablePin(Motor_OE_Pin);
   motor.setToFrequency(PWM_Frequency);
-  motor.disableOutputs(Motor_OE_Pin);
-  motor.setOutputsNotInverted();
-  //Set Disabled Mode
   motor.setOutputsLowWhenDisabled();
-  //Set Pitch Motor Forwards
-  motor.setChannelDutyCycle(P_Motor_ChanA1,37.5,0);
-  motor.setChannelDutyCycle(P_Motor_ChanA2,37.5,50);
-  motor.setChannelDutyCycle(P_Motor_ChanB1,37.5,25);
-  motor.setChannelDutyCycle(P_Motor_ChanB2,37.5,75);
+  motor.disableOutputs(Motor_OE_Pin);
+  motor.setOutputsInverted();
+  // motor.setOutputsNotInverted();
+  //Set Pitch Motor to Initially Disabled
+  motor.setChannelDutyCycle(P_Motor_ChanE,0);
   //Calibrate Motors
   MOTOR_ESC_Calibrate();
   MOTOR_Pitch_Calibrate();
@@ -66,32 +63,36 @@ void Flight_System::MOTOR_ESC_Calibrate(){
   motor.setChannelDutyCycle(L_Motor_Chan,PWM_MAX);
   motor.setChannelDutyCycle(R_Motor_Chan,PWM_MAX);
   motor.enableOutputs(Motor_OE_Pin);
-  delay(2200);  //Wait for two beeps
+  delay(4000);  //Wait for two beeps
   //Calibrate ESC Throttle Min
   motor.setChannelDutyCycle(L_Motor_Chan,PWM_MIN);
   motor.setChannelDutyCycle(R_Motor_Chan,PWM_MIN);
   //Shutdown ESC
-  delay(10000);
-  motor.disableOutputs(Motor_OE_Pin);
+  delay(3000);
 }
 void Flight_System::MOTOR_Pitch_Calibrate(){
   //Force Pitch Motor to Zero Point
-  motor.enableOutputs(Motor_OE_Pin);
-  motor.setChannelDutyCycle(P_Motor_ChanE,100.0,0.0);
-  MOTOR_Pitch_Control(100 + P_Motor_Tol);
-  delay(P_Motor_Count/PWM_Frequency*1000);
-  motor.disableOutputs(Motor_OE_Pin);
+  motor.setChannelDutyCycle(P_Motor_ChanE,100);
+  int count = 0;
+  while(count<P_Motor_Count){
+    count += MOTOR_Pitch_Control(100 + P_Motor_Tol);
+  }
   //Set Initial Pitch Position to Midpoint
-  P_Motor = 50.0;
+  count = 0;
+  while(count<(P_Motor_Count/2)){
+    count += MOTOR_Pitch_Control(50);
+  }
+  //Disable Pitch Motor
+  motor.setChannelDutyCycle(P_Motor_ChanE,0);
 }
-void Flight_System::MOTOR_Pitch_Control(float target){
+bool Flight_System::MOTOR_Pitch_Control(float target){
   static float position = 50;     //[%] Motor Position as % of Range
-  static long last;               //[us] Time between Function Calls
+  static unsigned long last;      //[us] Time between Function Calls
   static bool enabled = false;
   static uint8_t index = 0;
 
   //Limit Servo RotationSpeed
-  if(micros()-last < 100000) return;
+  if(micros()-last < 10000) return false;
 
   //Update Direction
   bool forwards = position < target;
@@ -103,7 +104,7 @@ void Flight_System::MOTOR_Pitch_Control(float target){
       enabled = true;
     }
     //Update Position
-    position -= 100.0*/P_Motor_Count*(1-2*forwards);
+    position -= 100.0/P_Motor_Count*(1-2*forwards);
     position = constrain(position,0.0,100.0);
   }
   else{
@@ -159,60 +160,25 @@ void Flight_System::MOTOR_Pitch_Control(float target){
       motor.setChannelDutyCycle(P_Motor_ChanA1,100);
       break;
   }
-
+  #ifdef MOTOR_Debug
+    Serial.printf("Pitch_Position:%f\n",position);
+  #endif
   last = micros();
-  // Serial.printf("position:%f,delay:%d\n",position,micros()-last);
+  return true;
 }
-// void Flight_System::MOTOR_Pitch_Control(float target){
-//   static float position = 50;     //[%] Motor Position as % of Range
-//   static long last;               //[ms] Time between Function Calls
-//   static bool forwards = true;
-//   static bool enabled = false;
-
-//   //Pitch Direction Control
-//   if(forwards != position < target){
-//     if(position < target){
-//       motor.setChannelDutyCycle(P_Motor_ChanB1,37.5,25);
-//       motor.setChannelDutyCycle(P_Motor_ChanB2,37.5,75);
-//       forwards = true;
-//     }
-//     else{
-//       motor.setChannelDutyCycle(P_Motor_ChanB1,37.5,75);
-//       motor.setChannelDutyCycle(P_Motor_ChanB2,37.5,25);
-//       forwards = false;
-//     }
-//   }
-
-//   //Enable Control
-//   if(position < target - P_Motor_Tol || position > target + P_Motor_Tol){
-//     if(!enabled){
-//       motor.setChannelDutyCycle(P_Motor_ChanE,100);
-//       enabled = true;
-//     }
-//     //Update Position
-//     position -= 100.0*PWM_Frequency/P_Motor_Count*(micros()-last)/1000000.0*(1-2*forwards);
-//     position = constrain(position,0.0,100.0);
-//   }
-//   else{
-//     motor.setChannelDutyCycle(P_Motor_ChanE,0);
-//     enabled = false;
-//   }
-//   // Serial.printf("position:%f,delay:%d\n",position,micros()-last);
-//   last = micros();
-// }
 void Flight_System::MOTOR_Update(){
-  //Update Armed Status
   if (ARMED){
-    motor.enableOutputs(Motor_OE_Pin);
+    //Update Motor Positions
+    motor.setChannelDutyCycle(L_Motor_Chan,L_Motor);
+    motor.setChannelDutyCycle(R_Motor_Chan,R_Motor);
+    MOTOR_Pitch_Control(P_Motor);
   }
   else{
-    motor.disableOutputs(Motor_OE_Pin);
+    //Set ESC Throttle to Zero
+    motor.setChannelDutyCycle(L_Motor_Chan,PWM_MIN);
+    motor.setChannelDutyCycle(R_Motor_Chan,PWM_MIN);
   }
-  //Update Motor Setpoints
-  motor.setChannelDutyCycle(L_Motor_Chan,L_Motor);
-  motor.setChannelDutyCycle(R_Motor_Chan,R_Motor);
-  MOTOR_Pitch_Control(P_Motor);
-
+  
   #ifdef MOTOR_Debug
     Serial.printf("L:%f,R:%f,P:%f,ARM:%d\n",L_Motor,R_Motor,P_Motor,ARMED);
   #endif
@@ -228,9 +194,9 @@ void Flight_System::MODE_Update(){
   //Obtain Flight Orders
   switch(flight_mode){
     case MODE_MANUAL:
-      L_Motor = (comms->MAVLINK_manual_control.z/10.0+100) - (comms->MAVLINK_manual_control.y/10.0+100);
-      R_Motor = (comms->MAVLINK_manual_control.z/10.0+100) + (comms->MAVLINK_manual_control.y/10.0+100);
-      P_Motor = (comms->MAVLINK_manual_control.x/20.0+50);
+      L_Motor = ((comms->MAVLINK_manual_control.z/10.0)-(comms->MAVLINK_manual_control.y/10.0))*(PWM_MAX-PWM_MIN)/100.0+PWM_MIN;
+      R_Motor = ((comms->MAVLINK_manual_control.z/10.0)+(comms->MAVLINK_manual_control.y/10.0))*(PWM_MAX-PWM_MIN)/100.0+PWM_MIN;
+      P_Motor = (comms->MAVLINK_manual_control.x/20.0+50);  //[0 to 100]
       break;
     case MODE_HOLD_ALT:
       break;
@@ -254,12 +220,12 @@ void Flight_System::MODE_Update(){
   //Set Control Limits
   L_Motor = constrain(L_Motor,PWM_MIN,PWM_MAX);
   R_Motor = constrain(R_Motor,PWM_MIN,PWM_MAX);
-  P_Motor = constrain(P_Motor,PWM_MIN,PWM_MAX);
+  P_Motor = constrain(P_Motor,P_Motor_MIN,P_Motor_MAX);
 
   #ifdef MODE_Debug
-    Serial.printf("x:%f,",comms->MAVLINK_manual_control.x);
-    Serial.printf("y:%f,",comms->MAVLINK_manual_control.y);
-    Serial.printf("z:%f\n",comms->MAVLINK_manual_control.z);
+    Serial.printf("x:%d,",comms->MAVLINK_manual_control.x);
+    Serial.printf("y:%d,",comms->MAVLINK_manual_control.y);
+    Serial.printf("z:%d\n",comms->MAVLINK_manual_control.z);
   #endif
 }
 

@@ -41,37 +41,38 @@
 // #define TIME_Debug
 
 //System Modules (Global Objects)
+Flight_System *flight = new Flight_System();
 Storage_System *storage = new Storage_System();
 Sensor_System *sensor = new Sensor_System();
 Network_System *network = new Network_System();
 Comms_System *comms = new Comms_System();
-Flight_System *flight = new Flight_System();
 
 //Startup
 void setup() {
   Serial.begin(115200,SERIAL_8N1);
   while (!Serial){}Serial.println("Starting Up");
+  flight->Init();
   storage->Init();
   sensor->Init();
   network->Init();
   comms->Init();
-  flight->Init();
 }
 
 //Main Program Loop
 void loop() {
   #ifdef TIME_Debug
     static unsigned long last[5];
-    last[0] = micros(); sensor->Update();   Serial.printf("Sensor_t:%d,",micros()-last[0]);
-    last[1] = micros(); network->Update();  Serial.printf("Network_t:%d,",micros()-last[1]);
-    last[2] = micros(); comms->Update();    Serial.printf("Comms_t:%d,",micros()-last[2]);
-    last[3] = micros(); flight->Update();   Serial.printf("Flight_t:%d,",micros()-last[3]);
+    last[0] = micros(); flight->Update();   Serial.printf("Flight_t:%d,",micros()-last[0]);
+    last[1] = micros(); sensor->Update();   Serial.printf("Sensor_t:%d,",micros()-last[1]);
+    last[2] = micros(); network->Update();  Serial.printf("Network_t:%d,",micros()-last[2]);
+    last[3] = micros(); comms->Update();    Serial.printf("Comms_t:%d,",micros()-last[3]);
+    
     Serial.printf("Loop_Delay[us]:%d\n",micros()-last[4]);
     last[4] = micros();
   #else
+    flight->Update();
     sensor->Update();
     network->Update();
     comms->Update();
-    flight->Update();
   #endif
 }
