@@ -63,19 +63,19 @@ void Flight_System::MOTOR_ESC_Calibrate(){
   motor.setChannelDutyCycle(L_Motor_Chan,PWM_MAX);
   motor.setChannelDutyCycle(R_Motor_Chan,PWM_MAX);
   motor.enableOutputs(Motor_OE_Pin);
-  delay(4000);  //Wait for two beeps
+  delay(4500);  //Wait for two beeps
   //Calibrate ESC Throttle Min
   motor.setChannelDutyCycle(L_Motor_Chan,PWM_MIN);
   motor.setChannelDutyCycle(R_Motor_Chan,PWM_MIN);
   //Shutdown ESC
-  delay(3000);
+  delay(5000);
 }
 void Flight_System::MOTOR_Pitch_Calibrate(){
   //Force Pitch Motor to Zero Point
   motor.setChannelDutyCycle(P_Motor_ChanE,100);
   int count = 0;
   while(count<P_Motor_Count){
-    count += MOTOR_Pitch_Control(100 + P_Motor_Tol);
+    count += MOTOR_Pitch_Control(100 + 2*P_Motor_Tol);
   }
   //Set Initial Pitch Position to Midpoint
   count = 0;
